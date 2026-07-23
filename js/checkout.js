@@ -76,7 +76,7 @@ async function getConfigPix() {
     return { chavePix: '', nomePix: '' };
 }
 
-async finalizarCompra(usuarioId, username, produto, comprovanteBase64) {
+async function finalizarCompra(usuarioId, username, produto, comprovanteBase64) {
     const config = await getConfigPix();
     return await addDoc(collection(db, "compras"), {
         usuario: usuarioId,
