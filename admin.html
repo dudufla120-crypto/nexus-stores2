@@ -286,18 +286,23 @@
                     const compras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const el = document.getElementById('listaPagamentos');
                     if (compras.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma compra.</p>'; return; }
-                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Acoes</th></tr></thead><tbody>';
+                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Acoes</th><th>Entrega</th></tr></thead><tbody>';
                     compras.forEach(c => {
                         const pendente = c.status === 'pendente';
                         const sc = pendente ? 'status-pendente' : c.status === 'aprovado' ? 'status-aprovado' : 'status-recusado';
                         const sl = pendente ? 'Pendente' : c.status === 'aprovado' ? 'Aprovado' : 'Recusado';
                         const ch = c.comprovante ? `<img src="${c.comprovante}" class="comprovante-preview" onclick="window.open('${c.comprovante}')">` : '—';
                         const acoes = pendente ? `<button class="btn btn-success btn-small" onclick="aprovarPagamento('${c.id}')" style="margin-right:4px;">✓</button><button class="btn btn-danger btn-small" onclick="recusarPagamento('${c.id}')">✗</button>` : '<span style="color:#666;font-size:13px;">Finalizado</span>';
-                        h += `<tr><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${sc}">${sl}</span></td><td>${ch}</td><td>${acoes}</td></tr>`;
-                    });
-                    h += '</tbody></table></div>';
-                    el.innerHTML = h;
-                }, (err) => { console.error('Pagamentos error:', err); });
+                        const entregaHtml = c.status === 'aprovado'
+                            ? (c.mensagemEntrega
+                                ? `<div style="font-size:12px;color:var(--green);">${c.mensagemEntrega}</div>`
+                                : `<div style="display:flex;gap:4px;"><input type="text" id="entregaInput_${c.id}" placeholder="Codigo do produto..." style="flex:1;padding:4px 8px;background:#0a0a0a;border:1px solid var(--border);border-radius:4px;color:#fff;font-size:12px;"><button class="btn btn-success btn-small" onclick="entregarProduto('${c.id}')">Entregar</button></div>`)
+                            : '---';
+                        h += `<tr><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${sc}">${sl}</span></td><td>${ch}</td><td>${acoes}</td><td>${entregaHtml}</td></tr>`;
+                        });
+                        h += '</tbody></table></div>';
+                        el.innerHTML = h;
+                    }, (err) => { console.error('Pagamentos error:', err); });
             } catch (e) { console.error('Observer error:', e); }
         }
 
@@ -432,7 +437,17 @@
         window.aprovarPagamento = async (id) => {
             const r = await mostrarModal('Aprovar Pagamento', 'Confirmar recebimento?', [{ texto: 'Sim, Aprovar', acao: 'ok', classe: 'btn-success' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
             if (r !== 'ok') return;
-            try { await updateDoc(doc(db, "compras", id), { status: 'aprovado', dataAprovacao: new Date().toISOString() }); mostrarNotificacao('Aprovado!', 'sucesso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+            try { await updateDoc(doc(db, "compras", id), { status: 'aprovado', dataAprovacao: new Date().toISOString() }); mostrarNotificacao('Aprovado! Agora envie o codigo do produto no campo "Entrega"', 'sucesso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+        };
+
+        window.entregarProduto = async (id) => {
+            const input = document.getElementById('entregaInput_' + id);
+            const msg = input ? input.value.trim() : '';
+            if (!msg) { mostrarNotificacao('Digite o codigo do produto', 'aviso'); return; }
+            try {
+                await updateDoc(doc(db, "compras", id), { mensagemEntrega: msg, dataEntrega: new Date().toISOString() });
+                mostrarNotificacao('Produto entregue!', 'sucesso');
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao entregar', 'erro'); }
         };
 
         window.recusarPagamento = async (id) => {

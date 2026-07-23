@@ -10,7 +10,7 @@
     <nav class="navbar">
         <div class="logo"><span>Nexus Stores</span></div>
         <ul class="nav-links">
-            <li><a href="index.html">Início</a></li>
+            <li><a href="index.html">Inicio</a></li>
             <li><a href="dashboard.html" style="color:var(--accent);">Meu Perfil</a></li>
             <li><a href="admin.html" id="adminLink" style="display:none;">Painel ADM</a></li>
             <li><a id="logoutBtn" style="cursor:pointer;">Sair</a></li>
@@ -20,14 +20,20 @@
     <div class="container">
         <h1>Meu Perfil</h1>
         <div class="card" style="margin-top:20px;max-width:600px;">
-            <div id="profileInfo"><p style="color:#666;">⏳ Carregando...</p></div>
+            <div id="profileInfo"><p style="color:#666;">Carregando...</p></div>
         </div>
 
         <h2 style="margin-top:40px;">Minhas Compras</h2>
         <div id="minhasCompras" class="card" style="margin-top:16px;">
-            <p style="color:#666;">⏳ Carregando...</p>
+            <p style="color:#666;">Carregando...</p>
         </div>
     </div>
+
+    <style>
+        .entrega-box { background:rgba(16,185,129,0.1); border:1px solid var(--green); border-radius:8px; padding:12px; margin-top:8px; }
+        .entrega-box strong { color:var(--green); }
+        .entrega-box .msg { color:#ccc; margin-top:6px; padding:8px; background:#0a0a0a; border-radius:6px; font-size:13px; }
+    </style>
 
     <script type="importmap">
     {
@@ -39,64 +45,65 @@
     }
     </script>
     <script type="module">
-        import { auth, db } from './js/firebase-config.js';
-        import { logout, getCurrentUserData } from './js/auth.js';
-        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { formatarPreco, formatarData, mostrarNotificacao } from './js/helper.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { formatarPreco, formatarData } from './js/helper.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA1IFV10wUyzo_gX2hnvXCgARyXanN_5Zg",
+            authDomain: "nexus-stores.firebaseapp.com",
+            projectId: "nexus-stores",
+            storageBucket: "nexus-stores.firebasestorage.app",
+            messagingSenderId: "68773888286",
+            appId: "1:68773888286:web:2f72c4debc72bf2576c90f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = 'login.html'; return; }
 
-            const userData = await getCurrentUserData();
-            if (!userData) { window.location.href = 'login.html'; return; }
+            try {
+                const snap = await getDoc(doc(db, "usuarios", user.uid));
+                if (!snap.exists()) { window.location.href = 'login.html'; return; }
+                const userData = { uid: user.uid, ...snap.data() };
 
-            const adminBadge = userData.admin
-                ? '<span class="status status-aprovado" style="margin-left:8px;">👑 Admin</span>'
-                : '';
-
-            document.getElementById('profileInfo').innerHTML = `
-                <h3>${userData.username} ${adminBadge}</h3>
-                <p style="color:#666;margin-top:8px;">Conta criada em ${userData.dataCadastro ? formatarData(userData.dataCadastro) : '—'}</p>
-                <p style="color:#666;margin-top:12px;">Este é seu username único na Nexus Stores.</p>
-            `;
-
-            if (userData.admin) {
-                document.getElementById('adminLink').style.display = 'inline';
-            }
+                const badge = userData.admin ? '<span class="status status-aprovado" style="margin-left:8px;">Admin</span>' : '';
+                document.getElementById('profileInfo').innerHTML = `
+                    <h3>${userData.username} ${badge}</h3>
+                    <p style="color:#666;margin-top:8px;">Conta criada em ${userData.dataCadastro ? formatarData(userData.dataCadastro) : '---'}</p>
+                `;
+                if (userData.admin) document.getElementById('adminLink').style.display = 'inline';
+            } catch (err) { console.error(err); }
 
             try {
-                const q = query(collection(db, "compras"), orderBy("data", "desc"));
-
-                onSnapshot(q, (snap) => {
+                onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
                     const uid = user.uid;
-                    const minhasCompras = [];
-                    snap.forEach(d => {
-                        if (d.data().usuario === uid) {
-                            minhasCompras.push({ id: d.id, ...d.data() });
-                        }
-                    });
+                    const compras = [];
+                    snap.forEach(d => { if (d.data().usuario === uid) compras.push({ id: d.id, ...d.data() }); });
 
-                    if (minhasCompras.length === 0) {
-                        document.getElementById('minhasCompras').innerHTML = '<p style="color:#666;">Você ainda não fez nenhuma compra.</p>';
+                    const el = document.getElementById('minhasCompras');
+                    if (compras.length === 0) {
+                        el.innerHTML = '<p style="color:#666;">Voce ainda nao fez nenhuma compra.</p>';
                         return;
                     }
-                    let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead><tbody>';
-                    minhasCompras.forEach(c => {
-                        const statusClass = c.status === 'aprovado' ? 'status-aprovado' : c.status === 'recusado' ? 'status-recusado' : 'status-pendente';
-                        const statusLabel = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
-                        html += `<tr><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${statusClass}">${statusLabel}</span></td></tr>`;
+                    let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Entrega</th></tr></thead><tbody>';
+                    compras.forEach(c => {
+                        const sc = c.status === 'aprovado' ? 'status-aprovado' : c.status === 'recusado' ? 'status-recusado' : 'status-pendente';
+                        const sl = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
+                        const entrega = c.status === 'aprovado' && c.mensagemEntrega
+                            ? `<div class="entrega-box"><strong>Produto Entregue!</strong><div class="msg">${c.mensagemEntrega}</div></div>`
+                            : c.status === 'aprovado'
+                                ? '<span style="color:var(--green);font-size:13px;">Aprovado - aguardando codigo</span>'
+                                : '<span style="color:#555;font-size:13px;">---</span>';
+                        html += `<tr><td>${c.produtoNome || '---'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td><td>${entrega}</td></tr>`;
                     });
                     html += '</tbody></table></div>';
-                    document.getElementById('minhasCompras').innerHTML = html;
-                }, (err) => {
-                    console.error('Erro compras:', err);
-                    document.getElementById('minhasCompras').innerHTML = '<p style="color:var(--red);">Erro ao carregar compras.</p>';
-                });
-            } catch (err) {
-                console.error('Erro compras:', err);
-                document.getElementById('minhasCompras').innerHTML = '<p style="color:var(--red);">Erro ao carregar compras.</p>';
-            }
+                    el.innerHTML = html;
+                }, (err) => { console.error('Erro compras:', err); });
+            } catch (err) { console.error(err); }
         });
 
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {

@@ -10,7 +10,7 @@
     <nav class="navbar">
         <div class="logo"><span>Nexus Stores</span></div>
         <ul class="nav-links">
-            <li><a href="index.html">← Voltar</a></li>
+            <li><a href="index.html">Voltar</a></li>
             <li><a href="" id="logoutBtn">Sair</a></li>
         </ul>
     </nav>
@@ -19,13 +19,23 @@
         <h1>Finalizar Compra</h1>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:24px;" id="checkoutLayout">
             <div class="card" id="produtoInfo">
-                <p style="color:var(--text-secondary);">⏳ Carregando...</p>
+                <p style="color:var(--text-secondary);">Carregando...</p>
             </div>
             <div class="card" id="pagamentoInfo">
-                <p style="color:var(--text-secondary);">⏳ Carregando...</p>
+                <p style="color:var(--text-secondary);">Carregando...</p>
             </div>
         </div>
     </div>
+
+    <style>
+        .status-box { padding:16px; border-radius:8px; text-align:center; margin:16px 0; font-weight:600; }
+        .status-pendente-box { background:rgba(245,158,11,0.1); border:1px solid var(--yellow); color:var(--yellow); }
+        .status-aprovado-box { background:rgba(16,185,129,0.1); border:1px solid var(--green); color:var(--green); }
+        .status-recusado-box { background:rgba(239,68,68,0.1); border:1px solid var(--red); color:var(--red); }
+        .entrega-box-final { background:rgba(16,185,129,0.15); border:2px solid var(--green); border-radius:12px; padding:20px; text-align:center; margin-top:16px; }
+        .entrega-box-final h3 { color:var(--green); font-size:18px; margin-bottom:12px; }
+        .entrega-box-final .codigo { background:#0a0a0a; padding:16px; border-radius:8px; font-size:16px; color:#fff; word-break:break-all; margin:12px 0; font-weight:600; }
+    </style>
 
     <script type="importmap">
     {
@@ -37,25 +47,54 @@
     }
     </script>
     <script type="module">
-        import { auth, db } from './js/firebase-config.js';
-        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { gerarPixPayload, gerarQRCode, finalizarCompra } from './js/checkout.js';
-        import { getPixConfig } from './js/admin.js';
-        import { getCurrentUserData } from './js/auth.js';
-        import { formatarPreco, mostrarNotificacao, mostrarModal, imagemParaBase64 } from './js/helper.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { formatarPreco, mostrarNotificacao, imagemParaBase64 } from './js/helper.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA1IFV10wUyzo_gX2hnvXCgARyXanN_5Zg",
+            authDomain: "nexus-stores.firebaseapp.com",
+            projectId: "nexus-stores",
+            storageBucket: "nexus-stores.firebasestorage.app",
+            messagingSenderId: "68773888286",
+            appId: "1:68773888286:web:2f72c4debc72bf2576c90f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        function gerarCRC16(payload) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= payload.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+                    else crc = crc << 1;
+                    crc &= 0xFFFF;
+                }
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        function gerarPixPayload(chave, nome, cidade, valor) {
+            const v = valor.toFixed(2);
+            const n = nome.substring(0, 25).toUpperCase();
+            const c = (cidade || "Sao Paulo").substring(0, 15).toUpperCase();
+            const gui = "0014br.gov.bcb.pix";
+            const k = "01" + String(chave.length).padStart(2, '0') + chave;
+            const mi = "26" + String((gui + k).length).padStart(2, '0') + gui + k;
+            const payload = "000201" + mi + "52040000" + "5303986" + "54" + String(v.length).padStart(2, '0') + v + "5802BR" + "59" + String(n.length).padStart(2, '0') + n + "60" + String(c.length).padStart(2, '0') + c + "62" + String(("05" + "03" + "***").length).padStart(2, '0') + "05" + "03" + "***";
+            return payload + "6304" + gerarCRC16(payload + "6304");
+        }
 
         const params = new URLSearchParams(window.location.search);
         const produtoId = params.get('produtoId');
 
         onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
-                return;
-            }
-
+            if (!user) { window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href); return; }
             if (!produtoId) {
-                document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto não encontrado! <a href="index.html">Voltar</a></p>';
+                document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto nao encontrado! <a href="index.html">Voltar</a></p>';
                 document.getElementById('pagamentoInfo').innerHTML = '';
                 return;
             }
@@ -63,14 +102,14 @@
             try {
                 const prodSnap = await getDoc(doc(db, "produtos", produtoId));
                 if (!prodSnap.exists()) {
-                    document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto não encontrado! <a href="index.html">Voltar</a></p>';
+                    document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto nao encontrado! <a href="index.html">Voltar</a></p>';
                     document.getElementById('pagamentoInfo').innerHTML = '';
                     return;
                 }
 
                 const produto = { id: prodSnap.id, ...prodSnap.data() };
-                const configPix = await getPixConfig();
-                const userData = await getCurrentUserData();
+                const configSnap = await getDoc(doc(db, "config", "geral"));
+                const configPix = configSnap.data() || {};
                 const preco = parseFloat(produto.preco);
 
                 const imgHtml = produto.imagemBase64
@@ -88,11 +127,7 @@
                 `;
 
                 if (!configPix.chavePix) {
-                    document.getElementById('pagamentoInfo').innerHTML = `
-                        <h2 style="color:var(--yellow);margin-bottom:16px;">Pagamento Indisponível</h2>
-                        <p style="color:#666;">O admin ainda não configurou a chave PIX.</p>
-                        <a href="index.html" class="btn btn-secondary" style="margin-top:16px;">Voltar</a>
-                    `;
+                    document.getElementById('pagamentoInfo').innerHTML = '<h2 style="color:var(--yellow);margin-bottom:16px;">Pagamento Indisponivel</h2><p style="color:#666;">Admin ainda nao configurou PIX.</p><a href="index.html" class="btn btn-secondary" style="margin-top:16px;">Voltar</a>';
                     return;
                 }
 
@@ -101,45 +136,37 @@
                 document.getElementById('pagamentoInfo').innerHTML = `
                     <h2 style="color:var(--accent);margin-bottom:16px;">Pagamento via PIX</h2>
                     <p style="color:#666;margin-bottom:16px;">Escaneie o QR Code com seu banco</p>
-                    <div style="text-align:center;margin:20px 0;" id="qrcodeContainer">
-                        <div id="qrcode"></div>
-                    </div>
+                    <div style="text-align:center;margin:20px 0;" id="qrcodeContainer"><div id="qrcode"></div></div>
                     <div style="background:#0a0a0a;padding:12px;border-radius:8px;margin:16px 0;">
                         <p style="font-size:12px;color:#666;margin-bottom:4px;">Chave PIX:</p>
-                        <p style="font-weight:600;word-break:break-all;" id="chavePixDisplay">${configPix.chavePix}</p>
+                        <p style="font-weight:600;word-break:break-all;">${configPix.chavePix}</p>
                     </div>
-                    <button class="btn btn-secondary btn-small" onclick="copiarChave()" style="margin-bottom:16px;">📋 Copiar Chave PIX</button>
+                    <button class="btn btn-secondary btn-small" onclick="navigator.clipboard.writeText('${configPix.chavePix}').then(() => mostrarNotificacao('Chave copiada!','sucesso'))" style="margin-bottom:16px;">Copiar Chave PIX</button>
                     <div style="background:rgba(139,92,246,0.1);padding:16px;border-radius:8px;margin:16px 0;">
-                        <p style="color:var(--accent);font-weight:600;margin-bottom:8px;">💡 Após pagar:</p>
-                        <p style="color:#666;font-size:14px;">
-                            1. Pague com QR Code ou copie a chave<br>
-                            2. Tire print do comprovante<br>
-                            3. Faça upload abaixo
-                        </p>
+                        <p style="color:var(--accent);font-weight:600;margin-bottom:8px;">Apos pagar:</p>
+                        <p style="color:#666;font-size:14px;">1. Pague com QR Code ou copie a chave<br>2. Tire print do comprovante<br>3. Faca upload abaixo</p>
                     </div>
                     <div class="form-group">
                         <label>Comprovante (foto/print do pagamento)</label>
                         <input type="file" class="form-input" id="comprovanteInput" accept="image/*">
                         <div id="previewComprovante" style="margin-top:8px;"></div>
                     </div>
-                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmarBtn">✓ Já paguei - Confirmar Compra</button>
+                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmarBtn">Ja paguei - Confirmar Compra</button>
                     <div id="checkoutStatus" style="margin-top:12px;"></div>
                 `;
 
-                gerarQRCode(pixPayload, 'qrcode');
-
-                window.copiarChave = () => {
-                    navigator.clipboard.writeText(configPix.chavePix)
-                        .then(() => mostrarNotificacao('Chave PIX copiada!', 'sucesso'))
-                        .catch(() => mostrarNotificacao('Copie manualmente: ' + configPix.chavePix, 'info'));
-                };
+                const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixPayload)}`;
+                const img = document.createElement('img');
+                img.src = apiUrl;
+                img.alt = 'QR Code PIX';
+                img.style.cssText = 'width:250px;height:250px;border-radius:12px;';
+                img.onerror = () => document.getElementById('qrcode').innerHTML = '<p style="color:#666;">Erro ao gerar QR Code. Copie a chave manualmente.</p>';
+                document.getElementById('qrcode').appendChild(img);
 
                 document.getElementById('comprovanteInput').addEventListener('change', (e) => {
                     if (e.target.files[0]) {
                         const r = new FileReader();
-                        r.onload = (ev) => {
-                            document.getElementById('previewComprovante').innerHTML = `<img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid var(--border);">`;
-                        };
+                        r.onload = (ev) => document.getElementById('previewComprovante').innerHTML = `<img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid var(--border);">`;
                         r.readAsDataURL(e.target.files[0]);
                     }
                 });
@@ -147,32 +174,45 @@
                 document.getElementById('confirmarBtn').addEventListener('click', async () => {
                     const btn = document.getElementById('confirmarBtn');
                     const status = document.getElementById('checkoutStatus');
-                    const fileInput = document.getElementById('comprovanteInput');
-
-                    if (!fileInput.files[0]) {
-                        status.innerHTML = '<p style="color:var(--yellow);">Faça upload do comprovante!</p>';
-                        return;
-                    }
-
-                    btn.disabled = true;
-                    btn.textContent = 'Enviando...';
-                    status.innerHTML = '';
+                    const fi = document.getElementById('comprovanteInput');
+                    if (!fi.files[0]) { status.innerHTML = '<p style="color:var(--yellow);">Faca upload do comprovante!</p>'; return; }
+                    btn.disabled = true; btn.textContent = 'Enviando...'; status.innerHTML = '';
 
                     try {
-                        const comprovanteBase64 = await imagemParaBase64(fileInput.files[0]);
-                        await finalizarCompra(user.uid, userData.username, produto, comprovanteBase64);
-                        status.innerHTML = '<p style="color:var(--green);font-weight:600;">✅ Compra realizada! Aguarde aprovação do admin.</p>';
-                        btn.textContent = '✓ Enviado';
-                        mostrarNotificacao('Compra registrada com sucesso!', 'sucesso');
+                        const comprovanteBase64 = await imagemParaBase64(fi.files[0]);
+                        const snap = await getDoc(doc(db, "usuarios", user.uid));
+                        const userData = snap.data() || {};
+                        const ref = await addDoc(collection(db, "compras"), {
+                            usuario: user.uid, username: userData.username || '', produtoId: produto.id,
+                            produtoNome: produto.nome, valor: produto.preco, data: new Date().toISOString(),
+                            status: 'pendente', comprovante: comprovanteBase64, metodoPagamento: 'PIX',
+                            chavePix: configPix.chavePix, nomePix: configPix.nomePix
+                        });
+
+                        status.innerHTML = '<div class="status-box status-pendente-box">Compra registrada! Aguardando aprovacao do admin...</div>';
+                        btn.style.display = 'none';
+
+                        onSnapshot(doc(db, "compras", ref.id), (d) => {
+                            const c = d.data();
+                            if (!c) return;
+                            if (c.status === 'aprovado') {
+                                let html = '<div class="status-box status-aprovado-box">Pagamento Aprovado!</div>';
+                                if (c.mensagemEntrega) {
+                                    html += `<div class="entrega-box-final"><h3>Produto Entregue!</h3><p style="color:#aaa;margin-bottom:8px;">Codigo / Link do produto:</p><div class="codigo">${c.mensagemEntrega}</div><button class="btn btn-secondary btn-small" onclick="navigator.clipboard.writeText('${c.mensagemEntrega.replace(/'/g, "\\'")}').then(() => mostrarNotificacao('Copiado!','sucesso'))" style="margin-top:8px;">Copiar</button></div>`;
+                                }
+                                status.innerHTML = html;
+                            } else if (c.status === 'recusado') {
+                                status.innerHTML = '<div class="status-box status-recusado-box">Pagamento Recusado. Entre em contato com o admin.</div>';
+                            }
+                        }, (err) => console.error(err));
                     } catch (err) {
                         status.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
-                        btn.disabled = false;
-                        btn.textContent = '✓ Já paguei - Confirmar Compra';
+                        btn.disabled = false; btn.textContent = 'Ja paguei - Confirmar Compra';
                     }
                 });
 
             } catch (err) {
-                document.getElementById('produtoInfo').innerHTML = `<p style="color:var(--red);">Erro ao carregar: ${err.message}</p>`;
+                document.getElementById('produtoInfo').innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
                 document.getElementById('pagamentoInfo').innerHTML = '';
                 console.error(err);
             }
