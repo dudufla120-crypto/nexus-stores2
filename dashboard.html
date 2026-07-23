@@ -11,6 +11,7 @@
         <div class="logo"><span>Nexus Stores</span></div>
         <ul class="nav-links">
             <li><a href="index.html">Inicio</a></li>
+            <li><a href="planos.html">Planos</a></li>
             <li><a href="dashboard.html" style="color:var(--accent);">Meu Perfil</a></li>
             <li><a href="admin.html" id="adminLink" style="display:none;">Painel ADM</a></li>
             <li><a id="logoutBtn" style="cursor:pointer;">Sair</a></li>
@@ -23,16 +24,55 @@
             <div id="profileInfo"><p style="color:#666;">Carregando...</p></div>
         </div>
 
+        <div id="planSection" style="display:none;margin-top:24px;">
+            <div class="card plan-card" id="planCard"></div>
+        </div>
+
+        <div id="friendsSection" style="margin-top:24px;">
+            <h2>Amigos</h2>
+            <div class="card" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+                <input type="text" id="friendInput" placeholder="Nome de usuario..." style="flex:1;min-width:200px;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;">
+                <button class="btn btn-primary" id="addFriendBtn">Adicionar</button>
+            </div>
+            <div id="friendsList" class="card" style="margin-top:8px;"><p style="color:#666;">Carregando...</p></div>
+        </div>
+
+        <div id="supportSection" style="margin-top:24px;">
+            <h2>Suporte</h2>
+            <div class="card" style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;">
+                <a href="chat-suporte.html" class="btn btn-primary">Falar com Suporte</a>
+                <button class="btn btn-secondary" id="sugestaoBtn" style="display:none;">Enviar Sugestao</button>
+            </div>
+        </div>
+
         <h2 style="margin-top:40px;">Minhas Compras</h2>
         <div id="minhasCompras" class="card" style="margin-top:16px;">
             <p style="color:#666;">Carregando...</p>
         </div>
     </div>
 
+    <div id="modalOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h3 id="modalTitle">Sugestao</h3>
+            <textarea id="sugestaoText" placeholder="Descreva sua sugestao..." style="width:100%;min-height:120px;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;margin:12px 0;resize:vertical;"></textarea>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-primary" id="enviarSugestaoBtn">Enviar</button>
+                <button class="btn btn-secondary" id="fecharSugestaoBtn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <style>
-        .entrega-box { background:rgba(16,185,129,0.1); border:1px solid var(--green); border-radius:8px; padding:12px; margin-top:8px; }
-        .entrega-box strong { color:var(--green); }
-        .entrega-box .msg { color:#ccc; margin-top:6px; padding:8px; background:#0a0a0a; border-radius:6px; font-size:13px; }
+        .plan-card { background:linear-gradient(135deg, #1a0a2e, #2d1b4e); border:1px solid #7c3aed; }
+        .plan-level { font-size:24px; font-weight:700; color:#a78bfa; }
+        .plan-bar { height:8px; background:#333; border-radius:4px; margin:8px 0; overflow:hidden; }
+        .plan-bar-fill { height:100%; background:linear-gradient(90deg,#7c3aed,#a78bfa); border-radius:4px; transition:width 0.5s; }
+        .plan-info { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+        .plan-info div { background:rgba(124,58,237,0.1); padding:8px 12px; border-radius:6px; font-size:14px; }
+        .plan-info strong { color:#a78bfa; }
+
+        .friend-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(124,58,237,0.15); border:1px solid #7c3aed; border-radius:20px; padding:6px 14px; font-size:14px; }
+        .friend-tag .remove-friend { cursor:pointer; color:#f87171; font-size:16px; line-height:1; }
     </style>
 
     <script type="importmap">
@@ -47,7 +87,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, query, orderBy, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { formatarPreco, formatarData } from './js/helper.js';
 
         const firebaseConfig = {
@@ -61,6 +101,26 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        const niveis = [
+            { min: 1, max: 3, nome: 'Bronze', cor: '#cd7f32', icone: '🥉' },
+            { min: 4, max: 6, nome: 'Prata', cor: '#c0c0c0', icone: '🥈' },
+            { min: 7, max: 9, nome: 'Ouro', cor: '#ffd700', icone: '🥇' },
+            { min: 10, max: 9999, nome: 'Diamante', cor: '#b9f2ff', icone: '💎' }
+        ];
+        function calcularNivel(meses) {
+            if (!meses || meses < 1) return { nivel: 0, nome: 'Sem Plano', icone: '🔒', cor: '#666', progresso: 0, desconto: 0, nivelAtual: 0 };
+            for (const tier of niveis) {
+                if (meses >= tier.min && meses <= tier.max) {
+                    const grau = tier.nome === 'Bronze' ? ['I','II','III'][meses - 1] : tier.nome === 'Prata' ? ['I','II','III'][meses - 4] : tier.nome === 'Ouro' ? ['I','II','III'][meses - 7] : ['I','II','III'][meses - 10] || 'III';
+                    const totalNoTier = tier.max - tier.min + 1;
+                    const posicao = meses - tier.min + 1;
+                    const progresso = posicao / totalNoTier;
+                    return { nivel: meses, nome: `${tier.nome} ${grau}`, icone: tier.icone, cor: tier.cor, progresso, desconto: Math.min(meses, 12), nivelAtual: meses };
+                }
+            }
+            return { nivel: 12, nome: 'Diamante III', icone: '💎', cor: '#b9f2ff', progresso: 1, desconto: 12, nivelAtual: 12 };
+        }
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) { window.location.href = 'login.html'; return; }
@@ -76,6 +136,62 @@
                     <p style="color:#666;margin-top:8px;">Conta criada em ${userData.dataCadastro ? formatarData(userData.dataCadastro) : '---'}</p>
                 `;
                 if (userData.admin) document.getElementById('adminLink').style.display = 'inline';
+
+                const meses = userData.mesesAssinatura || 0;
+                const plano = userData.plano || null;
+                const nivel = calcularNivel(meses);
+
+                if (plano) {
+                    document.getElementById('planSection').style.display = 'block';
+                    const proxNivel = calcularNivel(meses + 1);
+                    document.getElementById('planCard').innerHTML = `
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                            <div>
+                                <span style="font-size:28px;">${nivel.icone}</span>
+                                <span class="plan-level">${nivel.nome}</span>
+                            </div>
+                            <span style="color:#666;font-size:14px;">${plano.charAt(0).toUpperCase() + plano.slice(1)}</span>
+                        </div>
+                        <div class="plan-bar"><div class="plan-bar-fill" style="width:${nivel.progresso * 100}%;"></div></div>
+                        <div class="plan-info">
+                            <div><strong>Meses</strong><br>${meses} mes(es)</div>
+                            <div><strong>Desconto</strong><br>${nivel.desconto}% OFF</div>
+                            <div><strong>Proximo</strong><br>${proxNivel.nome}</div>
+                            <div><strong>Benecios</strong><br>Acumulativos</div>
+                        </div>
+                    `;
+                }
+
+                if (plano === 'ouro' || nivel.nivel >= 7) {
+                    document.getElementById('sugestaoBtn').style.display = 'inline-block';
+                }
+
+                carregarAmigos(userData);
+
+                document.getElementById('addFriendBtn').addEventListener('click', () => adicionarAmigo(user.uid));
+                document.getElementById('friendInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarAmigo(user.uid); });
+
+                document.getElementById('sugestaoBtn').addEventListener('click', () => {
+                    document.getElementById('modalOverlay').style.display = 'flex';
+                });
+                document.getElementById('fecharSugestaoBtn').addEventListener('click', () => {
+                    document.getElementById('modalOverlay').style.display = 'none';
+                });
+                document.getElementById('enviarSugestaoBtn').addEventListener('click', async () => {
+                    const texto = document.getElementById('sugestaoText').value.trim();
+                    if (!texto) return;
+                    try {
+                        await setDoc(doc(db, "sugestoes", user.uid + '_' + Date.now()), {
+                            usuario: user.uid,
+                            username: userData.username,
+                            texto,
+                            data: new Date().toISOString()
+                        });
+                        document.getElementById('modalOverlay').style.display = 'none';
+                        document.getElementById('sugestaoText').value = '';
+                        alert('Sugestao enviada! Obrigado.');
+                    } catch (err) { console.error(err); }
+                });
             } catch (err) { console.error(err); }
 
             try {
@@ -93,7 +209,8 @@
                     compras.forEach(c => {
                         const sc = c.status === 'aprovado' ? 'status-aprovado' : c.status === 'recusado' ? 'status-recusado' : 'status-pendente';
                         const sl = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
-                        html += `<tr><td>${c.produtoNome || '---'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td><td><a href="chat.html?compraId=${c.id}" class="btn btn-primary btn-small" style="text-decoration:none;">💬 Chat</a></td></tr>`;
+                        const tipoLabel = c.tipo === 'assinatura' ? ' (Assinatura)' : '';
+                        html += `<tr><td>${c.produtoNome || '---'}${tipoLabel}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td><td>${c.tipo !== 'assinatura' ? `<a href="chat.html?compraId=${c.id}" class="btn btn-primary btn-small" style="text-decoration:none;">💬 Chat</a>` : '---'}</td></tr>`;
                     });
                     html += '</tbody></table></div>';
                     el.innerHTML = html;
@@ -106,6 +223,42 @@
             await signOut(auth);
             window.location.href = 'index.html';
         });
+
+        async function carregarAmigos(userData) {
+            const el = document.getElementById('friendsList');
+            const amigos = userData.amigos || [];
+            if (amigos.length === 0) {
+                el.innerHTML = '<p style="color:#666;">Nenhum amigo adicionado.</p>';
+                return;
+            }
+            el.innerHTML = amigos.map(a => `<span class="friend-tag"><span>${a}</span><span class="remove-friend" data-friend="${a}">&times;</span></span>`).join(' ');
+            el.querySelectorAll('.remove-friend').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const friend = btn.dataset.friend;
+                    try {
+                        await updateDoc(doc(db, "usuarios", auth.currentUser.uid), { amigos: arrayRemove(friend) });
+                        carregarAmigos({ amigos: (userData.amigos || []).filter(f => f !== friend) });
+                    } catch (err) { console.error(err); }
+                });
+            });
+        }
+
+        async function adicionarAmigo(uid) {
+            const input = document.getElementById('friendInput');
+            const nome = input.value.trim();
+            if (!nome) return;
+            try {
+                const q = query(collection(db, "usuarios"), where("username", "==", nome));
+                const snap = await getDocs(q);
+                if (snap.empty) { alert('Usuario nao encontrado!'); return; }
+                const mySnap = await getDoc(doc(db, "usuarios", uid));
+                const myData = mySnap.data() || {};
+                if ((myData.amigos || []).includes(nome)) { alert('Esse amigo ja esta na sua lista!'); return; }
+                await updateDoc(doc(db, "usuarios", uid), { amigos: arrayUnion(nome) });
+                input.value = '';
+                carregarAmigos({ amigos: [...(myData.amigos || []), nome] });
+            } catch (err) { console.error(err); alert('Erro ao adicionar amigo.'); }
+        }
     </script>
 </body>
 </html>

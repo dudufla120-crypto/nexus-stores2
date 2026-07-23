@@ -12,7 +12,8 @@
             <span>Nexus Stores</span>
         </div>
         <ul class="nav-links" id="navLinks">
-            <li><a href="index.html" style="color:var(--accent);">Início</a></li>
+            <li><a href="index.html" style="color:var(--accent);">Inicio</a></li>
+            <li><a href="planos.html">Planos</a></li>
             <li><a href="login.html" id="navLogin">Entrar</a></li>
             <li><a href="register.html" id="navRegister">Cadastrar</a></li>
             <li><a href="dashboard.html" id="navPerfil" style="display:none;">Meu Perfil</a></li>
@@ -204,6 +205,9 @@
                 const imgHtml = p.imagemBase64
                     ? `<img src="${p.imagemBase64}" class="product-image">`
                     : '<div class="product-image">🎮</div>';
+                const preVenda = p.preVenda && !p.disponivel;
+                const badge = preVenda ? '<span class="status status-pendente" style="display:inline-block;margin-bottom:6px;">Pre-Venda</span>' : '';
+                const btnText = preVenda ? 'Reservar' : 'Comprar Agora';
 
                 html += `
                     <div class="product-card">
@@ -211,9 +215,9 @@
                         <div class="product-info">
                             <h3>${p.nome}</h3>
                             <p>${p.descricao || 'Produto digital Roblox'}</p>
-                            <div class="product-price">${formatarPreco(p.preco)}</div>
+                            <div class="product-price">${badge} ${formatarPreco(p.preco)}</div>
                             <button class="btn btn-primary btn-small" style="width:100%;justify-content:center;" onclick="comprar('${p.id}')">
-                                Comprar Agora
+                                ${btnText}
                             </button>
                         </div>
                     </div>

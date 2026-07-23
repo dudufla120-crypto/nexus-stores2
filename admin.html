@@ -18,6 +18,8 @@
                 <li><a data-aba="logo">Logo</a></li>
                 <li><a data-aba="pix">PIX</a></li>
                 <li><a data-aba="pagamentos">Pagamentos</a></li>
+                <li><a data-aba="assinaturas">Assinaturas</a></li>
+                <li><a data-aba="suporte">Suporte</a></li>
                 <li><a href="index.html">Ver Site</a></li>
                 <li><a id="logoutBtn">Sair</a></li>
             </ul>
@@ -102,6 +104,19 @@
                 <div id="listaPagamentos" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
                 <div id="chatPainel" style="margin-top:16px;display:none;"></div>
             </div>
+
+            <div class="tab-content" id="tab-assinaturas">
+                <h1>Gerenciar Assinaturas</h1>
+                <div id="listaAssinaturas" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
+            </div>
+
+            <div class="tab-content" id="tab-suporte">
+                <h1>Suporte aos Usuarios</h1>
+                <div id="listaSuporte" class="card">
+                    <p style="color:var(--text-secondary);">Carregando...</p>
+                </div>
+                <div id="suporteChatPainel" style="margin-top:16px;display:none;"></div>
+            </div>
         </main>
     </div>
 
@@ -128,6 +143,10 @@
                 <div class="form-group">
                     <label>Imagem</label>
                     <input type="file" class="form-input" id="prodImagem" accept="image/*">
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="prodPreVenda" style="width:18px;height:18px;accent-color:var(--accent);">
+                    <label for="prodPreVenda" style="margin:0;">Produto em Pre-Venda (indisponivel ate liberacao)</label>
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button type="submit" class="btn btn-primary">Salvar</button>
@@ -244,7 +263,8 @@
                             let h = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Jogo</th><th>Preco</th><th>Acoes</th></tr></thead><tbody>';
                             prods.forEach(p => {
                                 const jn = jogos.find(j => j.id === p.jogoId)?.nome || '—';
-                                h += `<tr><td>${p.nome}</td><td>${jn}</td><td>${formatarPreco(p.preco)}</td><td><button class="btn btn-danger btn-small" onclick="excluirProduto('${p.id}')">Excluir</button></td></tr>`;
+                                const badge = p.preVenda ? ' <span class="status status-pendente" style="font-size:11px;">Pre-venda</span>' : '';
+                                h += `<tr><td>${p.nome}${badge}</td><td>${jn}</td><td>${formatarPreco(p.preco)}</td><td><button class="btn btn-danger btn-small" onclick="excluirProduto('${p.id}')">Excluir</button></td></tr>`;
                             });
                             h += '</tbody></table></div>';
                             el.innerHTML = h;
@@ -366,6 +386,39 @@
                     } catch(err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
                 };
             } catch (e) { console.error('Observer error:', e); }
+
+            try {
+                onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
+                    const assinaturas = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.tipo === 'assinatura');
+                    const el = document.getElementById('listaAssinaturas');
+                    if (assinaturas.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma assinatura.</p>'; return; }
+                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Plano</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead><tbody>';
+                    assinaturas.forEach(a => {
+                        const sc = a.status === 'aprovado' ? 'status-aprovado' : a.status === 'recusado' ? 'status-recusado' : 'status-pendente';
+                        const sl = a.status === 'aprovado' ? 'Aprovado' : a.status === 'recusado' ? 'Recusado' : 'Pendente';
+                        h += `<tr><td>${a.username || '---'}</td><td>${a.plano || '---'}</td><td>R$${a.valor?.toFixed(2) || '0'}</td><td>${a.data ? formatarData(a.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td></tr>`;
+                    });
+                    h += '</tbody></table></div>';
+                    el.innerHTML = h;
+                }, (err) => { console.error(err); });
+            } catch (e) { console.error(e); }
+
+            try {
+                onSnapshot(collection(db, "chats_suporte"), (snap) => {
+                    const chats = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    const el = document.getElementById('listaSuporte');
+                    if (chats.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum chat de suporte.</p>'; return; }
+                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Ultima Msg</th><th>Acoes</th></tr></thead><tbody>';
+                    chats.sort((a, b) => (b.ultimaAtividade || '').localeCompare(a.ultimaAtividade || ''));
+                    chats.forEach(c => {
+                        const msgs = c.mensagens || [];
+                        const ultima = msgs.length > 0 ? msgs[msgs.length - 1].texto?.substring(0, 40) + '...' : '---';
+                        h += `<tr><td><strong>${c.username || c.uid}</strong></td><td style="color:#888;font-size:13px;">${ultima}</td><td><button class="btn btn-primary btn-small" onclick="abrirChatSuporte('${c.uid}')">Responder</button></td></tr>`;
+                    });
+                    h += '</tbody></table></div>';
+                    el.innerHTML = h;
+                }, (err) => { console.error(err); });
+            } catch (e) { console.error(e); }
         }
 
         document.getElementById('jogoForm').addEventListener('submit', async (e) => {
@@ -437,10 +490,11 @@
                 const preco = parseFloat(document.getElementById('prodPreco').value);
                 const descricao = document.getElementById('prodDescricao').value.trim();
                 const fi = document.getElementById('prodImagem');
+                const preVenda = document.getElementById('prodPreVenda').checked;
                 if (!nome || !jogoId || !preco) { mostrarNotificacao('Preencha nome, jogo e preco', 'aviso'); return; }
                 let img = '';
                 if (fi.files[0]) img = await imagemParaBase64(fi.files[0]);
-                await addDoc(collection(db, "produtos"), { nome, jogoId, preco, descricao, imagemBase64: img, dataCriacao: new Date().toISOString() });
+                await addDoc(collection(db, "produtos"), { nome, jogoId, preco, descricao, imagemBase64: img, dataCriacao: new Date().toISOString(), disponivel: !preVenda, preVenda });
                 document.getElementById('modalProduto').classList.remove('active');
                 document.getElementById('produtoForm').reset();
                 mostrarNotificacao('Produto adicionado!', 'sucesso');
@@ -500,12 +554,34 @@
             const r = await mostrarModal('Aprovar Pagamento', 'Confirmar recebimento do PIX?', [{ texto: 'Sim, Aprovar', acao: 'ok', classe: 'btn-success' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
             if (r !== 'ok') return;
             try {
-                await updateDoc(doc(db, "compras", id), {
-                    status: 'aprovado',
-                    dataAprovacao: new Date().toISOString(),
-                    mensagens: arrayUnion({ remetente: 'admin', texto: 'Pagamento confirmado! Vou preparar seu produto.', data: new Date().toISOString() })
-                });
-                mostrarNotificacao('Aprovado! Chat aberto', 'sucesso');
+                const compraSnap = await getDoc(doc(db, "compras", id));
+                const compra = compraSnap.data();
+                if (!compra) return;
+
+                if (compra.tipo === 'assinatura') {
+                    const userSnap = await getDoc(doc(db, "usuarios", compra.usuario));
+                    const userData = userSnap.data() || {};
+                    const novosMeses = (userData.mesesAssinatura || 0) + 1;
+                    await updateDoc(doc(db, "compras", id), {
+                        status: 'aprovado',
+                        dataAprovacao: new Date().toISOString(),
+                        mensagens: arrayUnion({ remetente: 'admin', texto: 'Assinatura aprovada! Seu plano foi ativado. 🎉', data: new Date().toISOString() })
+                    });
+                    await setDoc(doc(db, "usuarios", compra.usuario), {
+                        plano: compra.plano,
+                        mesesAssinatura: novosMeses,
+                        dataAssinatura: userData.dataAssinatura || new Date().toISOString(),
+                        dataUltimoPagamento: new Date().toISOString()
+                    }, { merge: true });
+                    mostrarNotificacao(`Assinatura ${compra.plano} ativada! ${novosMeses} mes(es)`, 'sucesso');
+                } else {
+                    await updateDoc(doc(db, "compras", id), {
+                        status: 'aprovado',
+                        dataAprovacao: new Date().toISOString(),
+                        mensagens: arrayUnion({ remetente: 'admin', texto: 'Pagamento confirmado! Vou preparar seu produto.', data: new Date().toISOString() })
+                    });
+                    mostrarNotificacao('Aprovado! Chat aberto', 'sucesso');
+                }
             } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
@@ -520,6 +596,57 @@
                 });
                 mostrarNotificacao('Recusado', 'aviso');
             } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+        };
+
+        window.abrirChatSuporte = (uid) => {
+            const painel = document.getElementById('suporteChatPainel');
+            painel.style.display = 'block';
+            painel.innerHTML = '<p style="color:#666;">Carregando chat...</p>';
+
+            onSnapshot(doc(db, "chats_suporte", uid), (snap) => {
+                const data = snap.data() || {};
+                const msgs = data.mensagens || [];
+                let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <h3 style="margin:0;">Chat: ${data.username || uid}</h3>
+                    <button class="btn btn-secondary btn-small" onclick="document.getElementById('suporteChatPainel').style.display='none';">Fechar</button>
+                </div>`;
+                h += '<div style="max-height:300px;overflow-y:auto;padding:8px;background:#0a0a0a;border-radius:8px;">';
+                if (msgs.length === 0) {
+                    h += '<p style="color:#666;text-align:center;">Nenhuma mensagem.</p>';
+                } else {
+                    msgs.forEach(m => {
+                        const ehAdmin = m.remetente === 'admin';
+                        h += `<div style="display:flex;flex-direction:column;align-items:${ehAdmin ? 'flex-start' : 'flex-end'};margin-bottom:8px;">
+                            <div style="background:${ehAdmin ? '#7c3aed' : '#1a1a2e'};color:#fff;padding:6px 12px;border-radius:8px;max-width:80%;">
+                                <div style="font-size:13px;">${m.texto}</div>
+                                <div style="font-size:10px;color:#888;margin-top:2px;">${m.data ? formatarData(m.data) : ''}</div>
+                            </div>
+                        </div>`;
+                    });
+                }
+                h += '</div>';
+                h += `<div style="display:flex;gap:8px;margin-top:8px;">
+                    <input type="text" id="suporteChatInput" placeholder="Responder..." style="flex:1;padding:8px;border-radius:6px;border:1px solid #333;background:#111;color:#fff;">
+                    <button class="btn btn-primary" id="suporteChatEnviar" data-uid="${uid}">Enviar</button>
+                </div>`;
+                painel.innerHTML = h;
+
+                document.getElementById('suporteChatEnviar').addEventListener('click', async () => {
+                    const input = document.getElementById('suporteChatInput');
+                    const texto = input.value.trim();
+                    if (!texto) return;
+                    input.value = '';
+                    try {
+                        await setDoc(doc(db, "chats_suporte", uid), {
+                            mensagens: arrayUnion({ remetente: 'admin', texto, data: new Date().toISOString() }),
+                            ultimaAtividade: new Date().toISOString()
+                        }, { merge: true });
+                    } catch (err) { console.error(err); }
+                });
+                document.getElementById('suporteChatInput').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') document.getElementById('suporteChatEnviar').click();
+                });
+            }, (err) => { console.error(err); });
         };
 
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planos - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .planos-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:24px; margin:30px 0; }
+        .plano-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:30px; text-align:center; transition:all 0.3s; position:relative; }
+        .plano-card:hover { transform:translateY(-8px); border-color:var(--accent); box-shadow:0 12px 40px var(--accent-glow); }
+        .plano-card .plano-nome { font-size:24px; font-weight:900; margin-bottom:4px; }
+        .plano-card .plano-preco { font-size:40px; font-weight:900; color:var(--accent); margin:16px 0; }
+        .plano-card .plano-preco small { font-size:16px; color:#666; font-weight:400; }
+        .plano-card .plano-beneficios { text-align:left; margin:20px 0; }
+        .plano-card .plano-beneficios li { padding:8px 0; border-bottom:1px solid var(--border); font-size:14px; color:#ccc; list-style:none; }
+        .plano-card .plano-beneficios li::before { content:'✓ '; color:var(--green); font-weight:700; }
+        .plano-card .plano-beneficios li.nao::before { content:'✗ '; color:#555; }
+        .plano-card .plano-beneficios li.nao { color:#555; }
+        .plano-destaque { border:2px solid var(--accent); transform:scale(1.05); }
+        .plano-destaque .selo { position:absolute; top:-12px; right:-12px; background:var(--accent); color:#fff; padding:6px 16px; border-radius:20px; font-size:12px; font-weight:700; }
+        .nivel-atual { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px; margin:20px 0; }
+        .nivel-atual .barra { background:#222; border-radius:20px; height:12px; margin:12px 0; overflow:hidden; }
+        .nivel-atual .barra-preenchida { height:100%; border-radius:20px; transition:width 0.5s; }
+        .nivel-info { display:flex; justify-content:space-between; font-size:13px; color:#888; }
+        .historico-niveis { display:flex; gap:4px; flex-wrap:wrap; margin:12px 0; }
+        .historico-niveis .nivel-dot { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; cursor:help; }
+        .up-animation { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .up-animation .up-box { text-align:center; animation:upAnim 0.8s ease; }
+        .up-animation .up-emoji { font-size:100px; display:block; margin-bottom:10px; }
+        .up-animation .up-titulo { font-size:36px; font-weight:900; margin:10px 0; }
+        .up-animation .up-sub { font-size:18px; color:#aaa; margin:10px 0 20px; }
+        .up-animation .up-beneficios { background:#0a0a0a; border:1px solid var(--border); border-radius:12px; padding:20px; text-align:left; max-width:400px; margin:0 auto; }
+        .up-animation .up-beneficios li { padding:6px 0; color:#ccc; list-style:none; font-size:14px; }
+        .up-animation .up-beneficios li::before { content:'✦ '; }
+        .up-animation .up-btn { margin-top:24px; padding:12px 40px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+        @keyframes upAnim { 0%{transform:scale(0.3);opacity:0} 50%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+        .cor-bronze { color:#cd7f32; }
+        .cor-prata { color:#c0c0c0; }
+        .cor-ouro { color:#ffd700; }
+        .cor-diamante { color:#b9f2ff; }
+        .badge-plano { display:inline-block; padding:3px 12px; border-radius:20px; font-size:12px; font-weight:700; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><span>Nexus Stores</span></div>
+        <ul class="nav-links">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="planos.html" style="color:var(--accent);">Planos</a></li>
+            <li><a href="dashboard.html">Meu Perfil</a></li>
+            <li><a href="admin.html" id="adminLink" style="display:none;">Painel ADM</a></li>
+            <li><a id="logoutBtn">Sair</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Planos Nexus</h1>
+        <p style="color:#888;margin-bottom:30px;">Assine e acumule beneficios a cada mes! Quanto mais tempo assinando, mais vantagens.</p>
+
+        <div id="meuPlano"></div>
+
+        <div class="planos-grid" id="planosGrid"></div>
+
+        <div id="nivelSection" style="display:none;">
+            <h2>Seu Progresso</h2>
+            <div class="nivel-atual" id="nivelInfo"></div>
+            <h2>Histórico de Níveis</h2>
+            <div id="historicoNiveis" class="historico-niveis"></div>
+        </div>
+    </div>
+
+    <div id="upAnimationContainer"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { mostrarNotificacao } from './js/helper.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA1IFV10wUyzo_gX2hnvXCgARyXanN_5Zg",
+            authDomain: "nexus-stores.firebaseapp.com",
+            projectId: "nexus-stores",
+            storageBucket: "nexus-stores.firebasestorage.app",
+            messagingSenderId: "68773888286",
+            appId: "1:68773888286:web:2f72c4debc72bf2576c90f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const NIVEL_TABLE = [
+            { meses: 1, nome: "Bronze I", cor: "#cd7f32", desconto: 1, plano: "bronze", emoji: "🥉" },
+            { meses: 2, nome: "Bronze II", cor: "#cd7f32", desconto: 2, plano: "bronze", emoji: "🥉" },
+            { meses: 3, nome: "Bronze III", cor: "#cd7f32", desconto: 3, plano: "bronze", emoji: "🥉" },
+            { meses: 4, nome: "Prata I", cor: "#c0c0c0", desconto: 4, plano: "prata", emoji: "🥈" },
+            { meses: 5, nome: "Prata II", cor: "#c0c0c0", desconto: 5, plano: "prata", emoji: "🥈" },
+            { meses: 6, nome: "Prata III", cor: "#c0c0c0", desconto: 6, plano: "prata", emoji: "🥈" },
+            { meses: 7, nome: "Ouro I", cor: "#ffd700", desconto: 7, plano: "ouro", emoji: "🥇" },
+            { meses: 8, nome: "Ouro II", cor: "#ffd700", desconto: 8, plano: "ouro", emoji: "🥇" },
+            { meses: 9, nome: "Ouro III", cor: "#ffd700", desconto: 9, plano: "ouro", emoji: "🥇" },
+            { meses: 10, nome: "Diamante I", cor: "#b9f2ff", desconto: 10, plano: "diamante", emoji: "💎" },
+            { meses: 11, nome: "Diamante II", cor: "#b9f2ff", desconto: 11, plano: "diamante", emoji: "💎" },
+            { meses: 12, nome: "Diamante III", cor: "#b9f2ff", desconto: 12, plano: "diamante", emoji: "💎" },
+        ];
+
+        function getNivel(meses) {
+            const idx = Math.min(Math.max(meses - 1, 0), NIVEL_TABLE.length - 1);
+            return NIVEL_TABLE[idx];
+        }
+
+        function getNivelAnterior(meses) {
+            if (meses <= 1) return null;
+            return getNivel(meses - 1);
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                document.getElementById('meuPlano').innerHTML = '<p style="color:#888;">Faça login para ver os planos.</p>';
+                renderizarPlanos(null);
+                return;
+            }
+            try {
+                const snap = await getDoc(doc(db, "usuarios", user.uid));
+                const userData = snap.data() || {};
+                if (userData.admin) document.getElementById('adminLink').style.display = 'inline';
+
+                const meses = userData.mesesAssinatura || 0;
+                const nivel = getNivel(meses);
+                const nivelAnterior = getNivelAnterior(meses);
+
+                renderizarMeuPlano(userData);
+                renderizarPlanos(userData);
+                renderizarProgresso(userData);
+
+                if (nivelAnterior && nivelAnterior.plano !== nivel.plano) {
+                    const nivelKey = 'nivelUp_' + user.uid + '_' + meses;
+                    if (!localStorage.getItem(nivelKey)) {
+                        localStorage.setItem(nivelKey, '1');
+                        setTimeout(() => mostrarUpAnimation(nivel, nivelAnterior, userData), 500);
+                    }
+                }
+
+            } catch (err) { console.error(err); }
+        });
+
+        function renderizarMeuPlano(userData) {
+            const el = document.getElementById('meuPlano');
+            if (!userData.uid) {
+                el.style.display = 'none';
+                return;
+            }
+            const meses = userData.mesesAssinatura || 0;
+            const nivel = getNivel(meses);
+
+            if (meses === 0) {
+                el.innerHTML = '<div class="nivel-atual"><p style="color:#888;">Voce ainda nao tem um plano. Assine abaixo e comece a acumular beneficios!</p></div>';
+                el.style.display = 'block';
+                return;
+            }
+
+            const proxNivel = meses < 12 ? getNivel(meses + 1) : null;
+            const progresso = ((meses % 3) / 3) * 100;
+
+            el.innerHTML = `
+                <div class="nivel-atual">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <span class="badge-plano" style="background:${nivel.cor}22;color:${nivel.cor};">${nivel.emoji} ${nivel.nome}</span>
+                            <span style="margin-left:12px;color:#888;font-size:13px;">${meses} mês${meses>1?'es':''} • ${nivel.desconto}% OFF</span>
+                        </div>
+                    </div>
+                    ${proxNivel ? `
+                        <div class="barra"><div class="barra-preenchida" style="width:${progresso}%;background:${nivel.cor};"></div></div>
+                        <div class="nivel-info">
+                            <span>Proximo: ${proxNivel.nome} (${proxNivel.desconto}% OFF)</span>
+                            <span>${3 - (meses % 3 || 3)} meses</span>
+                        </div>
+                    ` : '<p style="color:var(--green);font-weight:600;margin-top:8px;">Nivel maximo atingido! 🎉</p>'}
+                </div>
+            `;
+        }
+
+        function renderizarPlanos(userData) {
+            const grid = document.getElementById('planosGrid');
+            const temPlano = userData && (userData.mesesAssinatura || 0) > 0;
+
+            const planos = [
+                {
+                    id: 'bronze', nome: 'Bronze', preco: 25, cor: '#cd7f32', destaque: false,
+                    beneficios: [
+                        'Suporte Prioritario (chat c/ ADM)',
+                        'Adicionar amigos',
+                        'Pre-venda / Em Breve',
+                        'Chat direto com ADM',
+                        temPlano ? 'Ja contratado ✓' : '1% OFF +1% por mes'
+                    ]
+                },
+                {
+                    id: 'prata', nome: 'Prata', preco: 50, cor: '#c0c0c0', destaque: true,
+                    beneficios: [
+                        'Tudo do Bronze',
+                        'Suporte Exclusivo (fila prioritaria)',
+                        'Chat Pos-Compra VIP c/ notificacao',
+                        'Tag Prata no perfil',
+                        temPlano ? 'Ja contratado ✓' : '4% OFF +1% por mes'
+                    ]
+                },
+                {
+                    id: 'ouro', nome: 'Ouro', preco: 100, cor: '#ffd700', destaque: false,
+                    beneficios: [
+                        'Tudo do Bronze + Prata',
+                        'Selo VIP no nome 👑',
+                        'Mensagens Privadas (MP)',
+                        'Sugestoes (botao exclusivo)',
+                        '1 Produto Gratis por mes',
+                        'Participa de sorteios',
+                        temPlano ? 'Ja contratado ✓' : '7% OFF +1% por mes'
+                    ]
+                }
+            ];
+
+            let html = '';
+            planos.forEach(p => {
+                const jaTem = userData && userData.plano === p.id;
+                const btnHtml = jaTem
+                    ? '<button class="btn btn-secondary" disabled style="opacity:0.6;">Assinado</button>'
+                    : `<button class="btn ${p.destaque ? 'btn-primary' : 'btn-secondary'}" onclick="assinarPlano('${p.id}')">Assinar - R$${p.preco}/mes</button>`;
+
+                html += `
+                    <div class="plano-card ${p.destaque ? 'plano-destaque' : ''}">
+                        ${p.destaque ? '<div class="selo">Mais Popular</div>' : ''}
+                        <div class="plano-nome" style="color:${p.cor};">${p.nome}</div>
+                        <div class="plano-preco">R$${p.preco}<small>/mes</small></div>
+                        <ul class="plano-beneficios">
+                            ${p.beneficios.map(b => `<li>${b}</li>`).join('')}
+                        </ul>
+                        ${btnHtml}
+                    </div>
+                `;
+            });
+            grid.innerHTML = html;
+        }
+
+        function renderizarProgresso(userData) {
+            const el = document.getElementById('nivelSection');
+            const meses = userData.mesesAssinatura || 0;
+            if (meses === 0) { el.style.display = 'none'; return; }
+
+            el.style.display = 'block';
+            const nivel = getNivel(meses);
+
+            let dotsHtml = '';
+            for (let i = 1; i <= 12; i++) {
+                const n = getNivel(i);
+                const atingido = i <= meses;
+                const atual = i === meses;
+                dotsHtml += `<div class="nivel-dot" style="background:${atingido ? n.cor : '#222'};border:${atual ? '2px solid '+n.cor : 'none'};" title="${n.nome} - ${n.desconto}% OFF">${i}</div>`;
+            }
+            document.getElementById('historicoNiveis').innerHTML = dotsHtml;
+        }
+
+        window.assinarPlano = async (planoId) => {
+            try {
+                const user = auth.currentUser;
+                if (!user) { window.location.href = 'login.html?redirect=planos.html'; return; }
+                const precos = { bronze: 25, prata: 50, ouro: 100 };
+                const preco = precos[planoId];
+                if (!preco) return;
+
+                const userSnap = await getDoc(doc(db, "usuarios", user.uid));
+                const userData = userSnap.data() || {};
+
+                const configSnap = await getDoc(doc(db, "config", "geral"));
+                const configPix = configSnap.data() || {};
+
+                if (!configPix.chavePix) {
+                    mostrarNotificacao('Pagamento PIX ainda nao configurado pelo admin', 'erro');
+                    return;
+                }
+
+                const ref = await addDoc(collection(db, "compras"), {
+                    usuario: user.uid,
+                    username: userData.username || '',
+                    tipo: 'assinatura',
+                    plano: planoId,
+                    produtoNome: `Plano ${planoId.charAt(0).toUpperCase() + planoId.slice(1)}`,
+                    valor: preco,
+                    data: new Date().toISOString(),
+                    status: 'pendente',
+                    metodoPagamento: 'PIX',
+                    chavePix: configPix.chavePix,
+                    nomePix: configPix.nomePix
+                });
+
+                mostrarNotificacao(`Plano ${planoId} solicitado! Apos pagamento, aguarde aprovacao.`, 'sucesso');
+                window.location.href = 'chat.html?compraId=' + ref.id;
+
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao assinar', 'erro'); }
+        };
+
+        function mostrarUpAnimation(novoNivel, nivelAnterior, userData) {
+            const container = document.getElementById('upAnimationContainer');
+            const diffBeneficios = [];
+            const todosBeneficios = NIVEL_TABLE.filter(n => n.meses <= (userData.mesesAssinatura || 0));
+            const beneficiosMap = {
+                bronze: ['Suporte Prioritario', 'Amigos', 'Pre-venda', 'Chat com ADM'],
+                prata: ['Suporte Exclusivo', 'Chat VIP', 'Tag Prata'],
+                ouro: ['Tag Ouro 👑', 'Mensagens Privadas', 'Sugestoes', '1 Produto Gratis/mes', 'Sorteios'],
+                diamante: ['Nome Brilhando ✨', 'Prioridade Maxima']
+            };
+
+            let benefList = [];
+            Object.keys(beneficiosMap).forEach(key => {
+                const tem = todosBeneficios.some(n => n.plano === key);
+                if (tem) benefList = benefList.concat(beneficiosMap[key]);
+            });
+
+            container.innerHTML = `
+                <div class="up-animation" onclick="this.remove()">
+                    <div class="up-box">
+                        <span class="up-emoji">${novoNivel.emoji}</span>
+                        <div class="up-titulo" style="color:${novoNivel.cor};text-shadow:0 0 30px ${novoNivel.cor};">
+                            ${nivelAnterior ? nivelAnterior.nome : 'Iniciante'} → ${novoNivel.nome}!
+                        </div>
+                        <div class="up-sub">🎉 Parabens! Voce subiu de nivel!</div>
+                        <div class="up-beneficios">
+                            <strong style="color:${novoNivel.cor};">Beneficios desbloqueados:</strong>
+                            <ul>${benefList.map(b => `<li>${b}</li>`).join('')}</ul>
+                            <p style="color:#888;font-size:13px;margin-top:8px;">Desconto atual: ${novoNivel.desconto}% OFF</p>
+                        </div>
+                        <button class="up-btn">Continuar 🚀</button>
+                    </div>
+                </div>
+            `;
+            container.querySelector('.up-btn').addEventListener('click', () => { container.innerHTML = ''; });
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await signOut(auth);
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
