@@ -2,6 +2,7 @@ import { db } from './firebase-config.js';
 import { collection, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 function formatarTempo(dataISO) {
+    if (!dataISO) return '';
     const diff = Date.now() - new Date(dataISO).getTime();
     const seg = Math.floor(diff / 1000);
     if (seg < 60) return 'agora mesmo';
@@ -17,39 +18,47 @@ function iniciarFeed(elementId, maxItems = 20) {
     const feedEl = document.getElementById(elementId);
     if (!feedEl) return;
 
-    feedEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">Carregando...</div>';
+    feedEl.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">⏳ Carregando...</div>';
 
-    const q = query(
-        collection(db, "compras"),
-        where("status", "==", "aprovado"),
-        orderBy("data", "desc")
-    );
+    try {
+        const q = query(
+            collection(db, "compras"),
+            where("status", "==", "aprovado"),
+            orderBy("data", "desc")
+        );
 
-    return onSnapshot(q, (snap) => {
-        let html = '';
-        let count = 0;
-        snap.forEach((doc) => {
-            if (count >= maxItems) return;
-            const compra = doc.data();
-            html += `
-                <div class="feed-item">
-                    <div class="feed-icon">🎮</div>
-                    <div class="feed-info">
-                        <strong>${compra.username || 'Anônimo'}</strong> comprou <strong>${compra.produtoNome || 'um produto'}</strong>
-                        <br><small>R$ ${parseFloat(compra.valor || 0).toFixed(2)}</small>
+        return onSnapshot(q, (snap) => {
+            if (snap.empty) {
+                feedEl.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Nenhuma compra recente</div>';
+                return;
+            }
+
+            let html = '';
+            let count = 0;
+            snap.forEach((doc) => {
+                if (count >= maxItems) return;
+                const c = doc.data();
+                html += `
+                    <div class="feed-item">
+                        <div class="feed-icon">🎮</div>
+                        <div class="feed-info">
+                            <strong>${c.username || 'Anônimo'}</strong> comprou <strong>${c.produtoNome || 'um produto'}</strong>
+                            <br><small>${c.valor ? 'R$ ' + parseFloat(c.valor).toFixed(2) : ''}</small>
+                        </div>
+                        <div class="feed-time">${formatarTempo(c.data)}</div>
                     </div>
-                    <div class="feed-time">${formatarTempo(compra.data)}</div>
-                </div>
-            `;
-            count++;
-        });
-
-        if (!html) {
-            feedEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:20px;">Nenhuma compra recente</div>';
-        } else {
+                `;
+                count++;
+            });
             feedEl.innerHTML = html;
-        }
-    });
+        }, (error) => {
+            console.error('Erro no feed:', error);
+            feedEl.innerHTML = '<div style="text-align:center;color:#ef4444;padding:20px;">Erro ao carregar feed</div>';
+        });
+    } catch (err) {
+        console.error('Erro ao iniciar feed:', err);
+        feedEl.innerHTML = '<div style="text-align:center;color:#ef4444;padding:20px;">Erro ao carregar feed</div>';
+    }
 }
 
 export { iniciarFeed };

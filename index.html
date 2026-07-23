@@ -12,39 +12,35 @@
             <span>Nexus Stores</span>
         </div>
         <ul class="nav-links" id="navLinks">
-            <li><a href="index.html" style="color:var(--accent);">Produtos</a></li>
+            <li><a href="index.html" style="color:var(--accent);">Início</a></li>
             <li><a href="login.html" id="navLogin">Entrar</a></li>
             <li><a href="register.html" id="navRegister">Cadastrar</a></li>
             <li><a href="dashboard.html" id="navPerfil" style="display:none;">Meu Perfil</a></li>
             <li><a href="admin.html" id="navAdmin" style="display:none;">Painel ADM</a></li>
-            <li><a href="" id="navLogout" style="display:none;">Sair</a></li>
+            <li><a id="navLogout" style="display:none;">Sair</a></li>
         </ul>
     </nav>
 
     <section class="hero">
         <h1>Bem-vindo à <span>Nexus Stores</span></h1>
         <p>Os melhores produtos Roblox com pagamento via PIX. Compra segura e entrega rápida!</p>
-        <a href="#produtos" class="btn btn-primary">Ver Produtos ↓</a>
+        <a href="#jogos" class="btn btn-primary">Ver Jogos ↓</a>
     </section>
 
-    <div class="container" id="produtos">
-        <h2 style="margin-bottom:16px;">Jogos Disponíveis</h2>
-        <div class="game-tabs" id="gameTabs"></div>
+    <div class="container" id="jogos">
+        <div id="gameNav" style="margin:30px 0;"></div>
+        <div id="gameContent"></div>
 
-        <div class="products-grid" id="productsGrid">
-            <p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px;">Carregando produtos...</p>
-        </div>
-
-        <div class="live-feed" id="liveFeed">
+        <div class="live-feed">
             <h2>Feed ao vivo de compras</h2>
             <div id="feedContainer">
-                <p style="color:var(--text-secondary);text-align:center;padding:20px;">Carregando...</p>
+                <p style="color:var(--text-secondary);text-align:center;padding:20px;">⏳ Carregando...</p>
             </div>
         </div>
     </div>
 
-    <footer style="text-align:center;padding:40px;color:var(--text-secondary);border-top:1px solid var(--border);margin-top:40px;">
-        <p>© 2026 Nexus Stores - Todos os direitos reservados</p>
+    <footer style="text-align:center;padding:40px;color:#666;border-top:1px solid #222;margin-top:40px;">
+        <p>© 2026 Nexus Stores</p>
         <p style="font-size:13px;margin-top:8px;">Produtos Roblox com pagamento via PIX</p>
     </footer>
 
@@ -61,27 +57,25 @@
         import { auth, db } from './js/firebase-config.js';
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { listarJogos, observarProdutos } from './js/products.js';
+        import { observarJogos, observarProdutos } from './js/products.js';
         import { iniciarFeed } from './js/feed.js';
         import { getLogo } from './js/admin.js';
+        import { formatarPreco, mostrarNotificacao } from './js/helper.js';
 
-        const gameTabs = document.getElementById('gameTabs');
-        const productsGrid = document.getElementById('productsGrid');
-        let produtosAtuais = [];
-        let jogoAtivo = 'todos';
+        let jogos = [];
+        let jogoSelecionado = null;
+        let unsubProdutos = null;
+        let unsubJogos = null;
 
-        // Load logo
         (async () => {
             try {
                 const logo = await getLogo();
                 if (logo) {
-                    const navbarLogo = document.getElementById('navbarLogo');
-                    navbarLogo.innerHTML = `<img src="${logo}" style="height:40px;"> <span>Nexus Stores</span>`;
+                    document.getElementById('navbarLogo').innerHTML = `<img src="${logo}" style="height:40px;border-radius:8px;"> <span>Nexus Stores</span>`;
                 }
             } catch (err) {}
         })();
 
-        // Auth state
         onAuthStateChanged(auth, async (user) => {
             const navLogin = document.getElementById('navLogin');
             const navRegister = document.getElementById('navRegister');
@@ -94,20 +88,12 @@
                 navRegister.style.display = 'none';
                 navPerfil.style.display = 'inline';
                 navLogout.style.display = 'inline';
-
                 try {
                     const userDoc = await getDoc(doc(db, "usuarios", user.uid));
                     if (userDoc.exists() && userDoc.data().admin) {
                         navAdmin.style.display = 'inline';
                     }
                 } catch (err) {}
-
-                navLogout.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    const { logout } = await import('./js/auth.js');
-                    await logout();
-                    window.location.reload();
-                });
             } else {
                 navLogin.style.display = 'inline';
                 navRegister.style.display = 'inline';
@@ -117,38 +103,99 @@
             }
         });
 
-        // Load games
-        let jogos = [];
-        let unsubscribeProdutos = null;
+        document.getElementById('navLogout').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const { logout } = await import('./js/auth.js');
+            await logout();
+            window.location.reload();
+        });
 
-        async function carregarJogos() {
-            try {
-                jogos = await listarJogos();
-                let html = `<div class="game-tab active" data-jogo="todos" onclick="selecionarJogo('todos')">Todos</div>`;
-                jogos.forEach(j => {
-                    html += `<div class="game-tab" data-jogo="${j.id}" onclick="selecionarJogo('${j.id}')">${j.nome}</div>`;
+        const gameNav = document.getElementById('gameNav');
+        const gameContent = document.getElementById('gameContent');
+
+        unsubJogos = observarJogos((jogosLista) => {
+            jogos = jogosLista;
+            renderizarNavegacao();
+            if (jogoSelecionado) {
+                const aindaExiste = jogos.find(j => j.id === jogoSelecionado);
+                if (!aindaExiste) {
+                    jogoSelecionado = null;
+                    renderizarProdutos([]);
+                }
+            }
+        });
+
+        function renderizarNavegacao() {
+            if (!jogos || jogos.length === 0) {
+                gameNav.innerHTML = `
+                    <div style="text-align:center;padding:40px;color:#666;">
+                        <h2 style="font-size:24px;margin-bottom:8px;">Nenhum jogo disponível</h2>
+                        <p>O admin ainda não cadastrou jogos.</p>
+                    </div>
+                `;
+                gameContent.innerHTML = '';
+                return;
+            }
+
+            let html = '<h2 style="margin-bottom:20px;">Categorias</h2><div class="game-tabs">';
+            jogos.forEach(j => {
+                const active = jogoSelecionado === j.id ? 'active' : '';
+                const imgHtml = j.imagem
+                    ? `<img src="${j.imagem}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:6px;">`
+                    : '';
+                html += `<div class="game-tab ${active}" data-id="${j.id}">${imgHtml}${j.nome}</div>`;
+            });
+            html += '</div>';
+            gameNav.innerHTML = html;
+
+            document.querySelectorAll('.game-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const id = tab.dataset.id;
+                    selecionarJogo(id);
                 });
-                gameTabs.innerHTML = html;
-            } catch (err) {
-                console.error('Erro jogos:', err);
+            });
+
+            if (!jogoSelecionado && jogos.length > 0) {
+                selecionarJogo(jogos[0].id);
             }
         }
 
-        window.selecionarJogo = function(jogoId) {
-            jogoAtivo = jogoId;
+        function selecionarJogo(id) {
+            jogoSelecionado = id;
             document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.game-tab[data-jogo="${jogoId}"]`).classList.add('active');
+            const tab = document.querySelector(`.game-tab[data-id="${id}"]`);
+            if (tab) tab.classList.add('active');
 
-            if (unsubscribeProdutos) unsubscribeProdutos();
-            unsubscribeProdutos = observarProdutos(jogoId, (produtos) => {
-                produtosAtuais = produtos;
+            const jogo = jogos.find(j => j.id === id);
+            if (!jogo) return;
+
+            if (unsubProdutos) unsubProdutos();
+            gameContent.innerHTML = `
+                <div class="jogo-header" style="margin:20px 0;display:flex;align-items:center;gap:16px;background:var(--bg-card);padding:20px;border-radius:12px;border:1px solid var(--border);">
+                    ${jogo.imagem ? `<img src="${jogo.imagem}" style="width:80px;height:80px;border-radius:12px;object-fit:cover;border:2px solid var(--accent);">` : '<div style="width:80px;height:80px;border-radius:12px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:36px;">🎮</div>'}
+                    <div>
+                        <h2 style="font-size:28px;">${jogo.nome}</h2>
+                        <p style="color:#666;">Produtos disponíveis</p>
+                    </div>
+                </div>
+                <div class="products-grid" id="productsGrid">
+                    <p style="color:#666;grid-column:1/-1;text-align:center;padding:40px;">⏳ Carregando produtos...</p>
+                </div>
+            `;
+
+            unsubProdutos = observarProdutos(id, (produtos) => {
                 renderizarProdutos(produtos);
+            }, () => {
+                document.getElementById('productsGrid').innerHTML = '<p style="color:#ef4444;grid-column:1/-1;text-align:center;padding:40px;">Erro ao carregar produtos.</p>';
             });
-        };
+        }
 
         function renderizarProdutos(produtos) {
-            if (produtos.length === 0) {
-                productsGrid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px;">Nenhum produto disponível neste jogo ainda.</p>';
+            const grid = document.getElementById('productsGrid');
+            if (!grid) return;
+
+            if (!produtos || produtos.length === 0) {
+                grid.innerHTML = '<p style="color:#666;grid-column:1/-1;text-align:center;padding:40px;">Nenhum produto disponível neste jogo ainda.</p>';
                 return;
             }
 
@@ -157,16 +204,14 @@
                 const imgHtml = p.imagemBase64
                     ? `<img src="${p.imagemBase64}" class="product-image">`
                     : '<div class="product-image">🎮</div>';
-                const jogoNome = jogos.find(j => j.id === p.jogoId)?.nome || '';
 
                 html += `
                     <div class="product-card">
                         ${imgHtml}
                         <div class="product-info">
-                            ${jogoNome ? `<span class="product-game">${jogoNome}</span>` : ''}
                             <h3>${p.nome}</h3>
                             <p>${p.descricao || 'Produto digital Roblox'}</p>
-                            <div class="product-price">${parseFloat(p.preco).toFixed(2)}</div>
+                            <div class="product-price">${formatarPreco(p.preco)}</div>
                             <button class="btn btn-primary btn-small" style="width:100%;justify-content:center;" onclick="comprar('${p.id}')">
                                 Comprar Agora
                             </button>
@@ -174,27 +219,19 @@
                     </div>
                 `;
             });
-
-            productsGrid.innerHTML = html;
+            grid.innerHTML = html;
         }
 
         window.comprar = function(produtoId) {
             const user = auth.currentUser;
             if (!user) {
-                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href + '?produtoId=' + produtoId);
+                const url = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/checkout.html?produtoId=' + produtoId;
+                window.location.href = 'login.html?redirect=' + encodeURIComponent(url);
                 return;
             }
             window.location.href = 'checkout.html?produtoId=' + produtoId;
         };
 
-        // Init
-        await carregarJogos();
-        unsubscribeProdutos = observarProdutos('todos', (produtos) => {
-            produtosAtuais = produtos;
-            renderizarProdutos(produtos);
-        });
-
-        // Live feed
         const unsubFeed = iniciarFeed('feedContainer');
     </script>
 </body>

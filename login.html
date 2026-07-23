@@ -10,13 +10,11 @@
     <div class="auth-container">
         <div class="auth-box">
             <div class="logo-center">
-                <img src="" alt="Nexus Stores" id="loginLogo" style="display:none;">
-                <h1 style="font-size:36px;color:var(--accent);">Nexus Stores</h1>
+                <h1 style="font-size:32px;color:var(--accent);">Nexus Stores</h1>
             </div>
             <h1>Entrar</h1>
-            <p class="subtitle">Digite seu username do Roblox e senha</p>
-
-            <div class="error-msg" id="errorMsg"></div>
+            <p class="subtitle">Digite seu username do Roblox</p>
+            <div id="errorMsg" style="display:none;background:rgba(239,68,68,0.1);border:1px solid var(--red);color:var(--red);padding:10px;border-radius:8px;margin-bottom:16px;font-size:14px;"></div>
 
             <form id="loginForm">
                 <div class="form-group">
@@ -27,9 +25,7 @@
                     <label>Senha</label>
                     <input type="password" class="form-input" id="password" placeholder="Sua senha" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">
-                    Entrar
-                </button>
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">Entrar</button>
             </form>
 
             <div class="auth-footer">
@@ -48,52 +44,44 @@
     }
     </script>
     <script type="module">
-        import { auth, db } from './js/firebase-config.js';
+        import { auth } from './js/firebase-config.js';
         import { login } from './js/auth.js';
-        import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 
-        const form = document.getElementById('loginForm');
-        const errorMsg = document.getElementById('errorMsg');
-        const loginBtn = document.getElementById('loginBtn');
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect') || 'dashboard.html';
 
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                window.location.href = 'dashboard.html';
-            }
+            if (user) window.location.href = 'dashboard.html';
         });
 
-        form.addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorMsg.classList.remove('show');
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Entrando...';
+            const errorMsg = document.getElementById('errorMsg');
+            const btn = document.getElementById('loginBtn');
+            errorMsg.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
 
             try {
-                const username = usernameInput.value.trim();
-                const password = passwordInput.value;
-
-                if (!username || !password) {
-                    throw new Error('Preencha todos os campos');
-                }
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                if (!username || !password) throw new Error('Preencha todos os campos');
 
                 await login(username, password);
-                window.location.href = 'dashboard.html';
+                window.location.href = redirect;
             } catch (err) {
-                let msg = 'Erro ao fazer login. Verifique seus dados.';
-                if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                let msg = 'Username ou senha incorretos!';
+                if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential')
                     msg = 'Username ou senha incorretos!';
-                } else if (err.code === 'auth/invalid-email') {
-                    msg = 'Username inválido!';
-                } else if (err.message) {
-                    msg = err.message;
-                }
+                else if (err.code === 'auth/invalid-email') msg = 'Username inválido!';
+                else if (err.code === 'auth/too-many-requests') msg = 'Muitas tentativas! Aguarde um momento.';
+                else if (err.message) msg = err.message;
+
                 errorMsg.textContent = msg;
-                errorMsg.classList.add('show');
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Entrar';
+                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
             }
         });
     </script>

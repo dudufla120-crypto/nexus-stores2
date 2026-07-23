@@ -8,25 +8,21 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">
-            <span>Nexus Stores</span>
-        </div>
+        <div class="logo"><span>Nexus Stores</span></div>
         <ul class="nav-links">
-            <li><a href="index.html">Produtos</a></li>
-            <li><a href="dashboard.html">Meu Perfil</a></li>
+            <li><a href="index.html">← Voltar</a></li>
             <li><a href="" id="logoutBtn">Sair</a></li>
         </ul>
     </nav>
 
     <div class="container">
         <h1>Finalizar Compra</h1>
-
-        <div id="checkoutContent" style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:24px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:24px;" id="checkoutLayout">
             <div class="card" id="produtoInfo">
-                <p style="color:var(--text-secondary);">Carregando...</p>
+                <p style="color:var(--text-secondary);">⏳ Carregando...</p>
             </div>
             <div class="card" id="pagamentoInfo">
-                <p style="color:var(--text-secondary);">Carregando...</p>
+                <p style="color:var(--text-secondary);">⏳ Carregando...</p>
             </div>
         </div>
     </div>
@@ -42,16 +38,15 @@
     </script>
     <script type="module">
         import { auth, db } from './js/firebase-config.js';
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
         import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { gerarPixPayload, gerarQRCode, getConfigPix, finalizarCompra } from './js/checkout.js';
+        import { gerarPixPayload, gerarQRCode, finalizarCompra } from './js/checkout.js';
+        import { getPixConfig } from './js/admin.js';
         import { getCurrentUserData } from './js/auth.js';
+        import { formatarPreco, mostrarNotificacao, mostrarModal, imagemParaBase64 } from './js/helper.js';
 
         const params = new URLSearchParams(window.location.search);
         const produtoId = params.get('produtoId');
-
-        const produtoInfo = document.getElementById('produtoInfo');
-        const pagamentoInfo = document.getElementById('pagamentoInfo');
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
@@ -60,42 +55,42 @@
             }
 
             if (!produtoId) {
-                produtoInfo.innerHTML = '<p style="color:var(--red);">Produto não encontrado!</p>';
-                pagamentoInfo.innerHTML = '';
+                document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto não encontrado! <a href="index.html">Voltar</a></p>';
+                document.getElementById('pagamentoInfo').innerHTML = '';
                 return;
             }
 
             try {
                 const prodSnap = await getDoc(doc(db, "produtos", produtoId));
                 if (!prodSnap.exists()) {
-                    produtoInfo.innerHTML = '<p style="color:var(--red);">Produto não encontrado!</p>';
-                    pagamentoInfo.innerHTML = '';
+                    document.getElementById('produtoInfo').innerHTML = '<p style="color:var(--red);">Produto não encontrado! <a href="index.html">Voltar</a></p>';
+                    document.getElementById('pagamentoInfo').innerHTML = '';
                     return;
                 }
 
                 const produto = { id: prodSnap.id, ...prodSnap.data() };
-                const configPix = await getConfigPix();
+                const configPix = await getPixConfig();
                 const userData = await getCurrentUserData();
-
                 const preco = parseFloat(produto.preco);
-                const imgHtml = produto.imagemBase64
-                    ? `<img src="${produto.imagemBase64}" class="product-image" style="height:200px;border-radius:8px;object-fit:cover;">`
-                    : '<div class="product-image">🎮</div>';
 
-                produtoInfo.innerHTML = `
+                const imgHtml = produto.imagemBase64
+                    ? `<img src="${produto.imagemBase64}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;">`
+                    : '<div style="width:100%;height:200px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:60px;">🎮</div>';
+
+                document.getElementById('produtoInfo').innerHTML = `
                     <h2 style="color:var(--accent);margin-bottom:16px;">Resumo do Pedido</h2>
                     ${imgHtml}
                     <div style="padding:16px 0;">
                         <h3>${produto.nome}</h3>
-                        <p style="color:var(--text-secondary);">${produto.descricao || 'Sem descrição'}</p>
-                        <div class="product-price">${preco.toFixed(2)}</div>
+                        <p style="color:#666;">${produto.descricao || 'Produto digital'}</p>
+                        <div class="product-price">${formatarPreco(preco)}</div>
                     </div>
                 `;
 
                 if (!configPix.chavePix) {
-                    pagamentoInfo.innerHTML = `
+                    document.getElementById('pagamentoInfo').innerHTML = `
                         <h2 style="color:var(--yellow);margin-bottom:16px;">Pagamento Indisponível</h2>
-                        <p style="color:var(--text-secondary);">O admin ainda não configurou a chave PIX. Volte mais tarde.</p>
+                        <p style="color:#666;">O admin ainda não configurou a chave PIX.</p>
                         <a href="index.html" class="btn btn-secondary" style="margin-top:16px;">Voltar</a>
                     `;
                     return;
@@ -103,64 +98,49 @@
 
                 const pixPayload = gerarPixPayload(configPix.chavePix, configPix.nomePix, 'Sao Paulo', preco);
 
-                pagamentoInfo.innerHTML = `
+                document.getElementById('pagamentoInfo').innerHTML = `
                     <h2 style="color:var(--accent);margin-bottom:16px;">Pagamento via PIX</h2>
-                    <p style="color:var(--text-secondary);margin-bottom:16px;">Escaneie o QR Code abaixo com seu banco ou copie a chave PIX.</p>
-
+                    <p style="color:#666;margin-bottom:16px;">Escaneie o QR Code com seu banco</p>
                     <div style="text-align:center;margin:20px 0;" id="qrcodeContainer">
                         <div id="qrcode"></div>
                     </div>
-
-                    <div style="background:var(--bg-primary);padding:12px;border-radius:8px;margin:16px 0;">
-                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Chave PIX:</p>
+                    <div style="background:#0a0a0a;padding:12px;border-radius:8px;margin:16px 0;">
+                        <p style="font-size:12px;color:#666;margin-bottom:4px;">Chave PIX:</p>
                         <p style="font-weight:600;word-break:break-all;" id="chavePixDisplay">${configPix.chavePix}</p>
                     </div>
-
-                    <button class="btn btn-secondary btn-small" onclick="copiarChavePix()" style="margin-bottom:16px;">
-                        📋 Copiar Chave PIX
-                    </button>
-
-                    <div style="background:var(--accent-light);padding:16px;border-radius:8px;margin:16px 0;">
+                    <button class="btn btn-secondary btn-small" onclick="copiarChave()" style="margin-bottom:16px;">📋 Copiar Chave PIX</button>
+                    <div style="background:rgba(139,92,246,0.1);padding:16px;border-radius:8px;margin:16px 0;">
                         <p style="color:var(--accent);font-weight:600;margin-bottom:8px;">💡 Após pagar:</p>
-                        <p style="color:var(--text-secondary);font-size:14px;">
-                            1. Pague com o QR Code ou copie a chave<br>
-                            2. Tire um print/foto do comprovante<br>
+                        <p style="color:#666;font-size:14px;">
+                            1. Pague com QR Code ou copie a chave<br>
+                            2. Tire print do comprovante<br>
                             3. Faça upload abaixo
                         </p>
                     </div>
-
                     <div class="form-group">
-                        <label>Comprovante de Pagamento (foto/print)</label>
-                        <input type="file" class="form-input" id="comprovanteInput" accept="image/*" style="padding:10px;">
+                        <label>Comprovante (foto/print do pagamento)</label>
+                        <input type="file" class="form-input" id="comprovanteInput" accept="image/*">
                         <div id="previewComprovante" style="margin-top:8px;"></div>
                     </div>
-
-                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmarBtn">
-                        ✓ Já paguei - Confirmar Compra
-                    </button>
+                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmarBtn">✓ Já paguei - Confirmar Compra</button>
                     <div id="checkoutStatus" style="margin-top:12px;"></div>
                 `;
 
                 gerarQRCode(pixPayload, 'qrcode');
 
-                window.copiarChavePix = function() {
-                    navigator.clipboard.writeText(configPix.chavePix).then(() => {
-                        alert('Chave PIX copiada!');
-                    }).catch(() => {
-                        alert('Copie manualmente: ' + configPix.chavePix);
-                    });
+                window.copiarChave = () => {
+                    navigator.clipboard.writeText(configPix.chavePix)
+                        .then(() => mostrarNotificacao('Chave PIX copiada!', 'sucesso'))
+                        .catch(() => mostrarNotificacao('Copie manualmente: ' + configPix.chavePix, 'info'));
                 };
 
                 document.getElementById('comprovanteInput').addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            document.getElementById('previewComprovante').innerHTML = `
-                                <img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid var(--border);">
-                            `;
+                    if (e.target.files[0]) {
+                        const r = new FileReader();
+                        r.onload = (ev) => {
+                            document.getElementById('previewComprovante').innerHTML = `<img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid var(--border);">`;
                         };
-                        reader.readAsDataURL(file);
+                        r.readAsDataURL(e.target.files[0]);
                     }
                 });
 
@@ -170,7 +150,7 @@
                     const fileInput = document.getElementById('comprovanteInput');
 
                     if (!fileInput.files[0]) {
-                        status.innerHTML = '<p style="color:var(--yellow);">Faça upload do comprovante antes de confirmar!</p>';
+                        status.innerHTML = '<p style="color:var(--yellow);">Faça upload do comprovante!</p>';
                         return;
                     }
 
@@ -179,18 +159,11 @@
                     status.innerHTML = '';
 
                     try {
-                        const reader = new FileReader();
-                        const comprovanteBase64 = await new Promise((resolve, reject) => {
-                            reader.onload = () => resolve(reader.result);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(fileInput.files[0]);
-                        });
-
+                        const comprovanteBase64 = await imagemParaBase64(fileInput.files[0]);
                         await finalizarCompra(user.uid, userData.username, produto, comprovanteBase64);
-
-                        status.innerHTML = '<p style="color:var(--green);font-weight:600;">✅ Compra realizada com sucesso! Aguarde o admin confirmar o pagamento.</p>';
-                        btn.textContent = '✓ Compra Confirmada';
-                        btn.style.display = 'none';
+                        status.innerHTML = '<p style="color:var(--green);font-weight:600;">✅ Compra realizada! Aguarde aprovação do admin.</p>';
+                        btn.textContent = '✓ Enviado';
+                        mostrarNotificacao('Compra registrada com sucesso!', 'sucesso');
                     } catch (err) {
                         status.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
                         btn.disabled = false;
@@ -199,16 +172,15 @@
                 });
 
             } catch (err) {
-                produtoInfo.innerHTML = '<p style="color:var(--red);">Erro ao carregar produto.</p>';
-                pagamentoInfo.innerHTML = '';
+                document.getElementById('produtoInfo').innerHTML = `<p style="color:var(--red);">Erro ao carregar: ${err.message}</p>`;
+                document.getElementById('pagamentoInfo').innerHTML = '';
                 console.error(err);
             }
         });
 
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {
             e.preventDefault();
-            const { logout } = await import('./js/auth.js');
-            await logout();
+            await signOut(auth);
             window.location.href = 'index.html';
         });
     </script>
