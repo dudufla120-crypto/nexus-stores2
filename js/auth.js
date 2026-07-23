@@ -7,9 +7,14 @@ function usuarioEmail(username) {
 }
 
 async function usernameExiste(username) {
-    const q = query(collection(db, "usuarios"), where("username", "==", username));
-    const snap = await getDocs(q);
-    return !snap.empty;
+    try {
+        const q = query(collection(db, "usuarios"), where("username", "==", username));
+        const snap = await getDocs(q);
+        return !snap.empty;
+    } catch (err) {
+        console.error('Erro usernameExiste:', err);
+        return false;
+    }
 }
 
 async function registrar(username, password) {
@@ -55,27 +60,45 @@ function observarAuth(callback) {
 }
 
 async function getCurrentUserData() {
-    const user = auth.currentUser;
-    if (!user) return null;
-    const userDoc = await getDoc(doc(db, "usuarios", user.uid));
-    if (userDoc.exists()) {
-        return { uid: user.uid, ...userDoc.data() };
+    try {
+        const user = auth.currentUser;
+        if (!user) return null;
+        const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+        if (userDoc.exists()) {
+            return { uid: user.uid, ...userDoc.data() };
+        }
+        return null;
+    } catch (err) {
+        console.error('Erro getCurrentUserData:', err);
+        return null;
     }
-    return null;
 }
 
 async function listarUsuarios() {
-    const q = query(collection(db, "usuarios"));
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    try {
+        const q = query(collection(db, "usuarios"));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    } catch (err) {
+        console.error('Erro listarUsuarios:', err);
+        return [];
+    }
 }
 
 async function promoverAdmin(uid) {
-    await setDoc(doc(db, "usuarios", uid), { admin: true }, { merge: true });
+    try {
+        await setDoc(doc(db, "usuarios", uid), { admin: true }, { merge: true });
+    } catch (err) {
+        console.error('Erro promoverAdmin:', err);
+    }
 }
 
 async function rebaixarAdmin(uid) {
-    await setDoc(doc(db, "usuarios", uid), { admin: false }, { merge: true });
+    try {
+        await setDoc(doc(db, "usuarios", uid), { admin: false }, { merge: true });
+    } catch (err) {
+        console.error('Erro rebaixarAdmin:', err);
+    }
 }
 
 export { registrar, login, logout, observarAuth, getCurrentUserData, listarUsuarios, promoverAdmin, rebaixarAdmin };
