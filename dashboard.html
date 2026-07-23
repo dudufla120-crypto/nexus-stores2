@@ -89,16 +89,11 @@
                         el.innerHTML = '<p style="color:#666;">Voce ainda nao fez nenhuma compra.</p>';
                         return;
                     }
-                    let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Entrega</th></tr></thead><tbody>';
+                    let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Chat</th></tr></thead><tbody>';
                     compras.forEach(c => {
                         const sc = c.status === 'aprovado' ? 'status-aprovado' : c.status === 'recusado' ? 'status-recusado' : 'status-pendente';
                         const sl = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
-                        const entrega = c.status === 'aprovado' && c.mensagemEntrega
-                            ? `<div class="entrega-box"><strong>Produto Entregue!</strong><div class="msg">${c.mensagemEntrega}</div></div>`
-                            : c.status === 'aprovado'
-                                ? '<span style="color:var(--green);font-size:13px;">Aprovado - aguardando codigo</span>'
-                                : '<span style="color:#555;font-size:13px;">---</span>';
-                        html += `<tr><td>${c.produtoNome || '---'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td><td>${entrega}</td></tr>`;
+                        html += `<tr><td>${c.produtoNome || '---'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '---'}</td><td><span class="status ${sc}">${sl}</span></td><td><a href="chat.html?compraId=${c.id}" class="btn btn-primary btn-small" style="text-decoration:none;">💬 Chat</a></td></tr>`;
                     });
                     html += '</tbody></table></div>';
                     el.innerHTML = html;

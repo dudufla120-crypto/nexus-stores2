@@ -100,6 +100,7 @@
             <div class="tab-content" id="tab-pagamentos">
                 <h1>Confirmar Pagamentos</h1>
                 <div id="listaPagamentos" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
+                <div id="chatPainel" style="margin-top:16px;display:none;"></div>
             </div>
         </main>
     </div>
@@ -282,7 +283,6 @@
             } catch (e) { console.error('Init error:', e); }
 
             try {
-                let chatSelecionado = '';
                 onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
                     const compras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const el = document.getElementById('listaPagamentos');
@@ -294,78 +294,76 @@
                         const sl = pendente ? 'Pendente' : c.status === 'aprovado' ? 'Aprovado' : 'Recusado';
                         const acoes = pendente
                             ? `<button class="btn btn-success btn-small" onclick="event.stopPropagation();aprovarPagamento('${c.id}')">✓ Aprovar</button> <button class="btn btn-danger btn-small" onclick="event.stopPropagation();recusarPagamento('${c.id}')">✗ Recusar</button>`
-                            : `<span style="color:#666;font-size:13px;"><button class="btn btn-success btn-small" onclick="event.stopPropagation();abrirChat('${c.id}')">💬 Chat</button></span>`;
-                        const active = chatSelecionado === c.id ? 'style="background:rgba(139,92,246,0.1);"' : '';
-                        h += `<tr ${active} onclick="abrirChat('${c.id}')" style="cursor:pointer;"><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td><span class="status ${sc}">${sl}</span></td><td>${acoes}</td></tr>`;
+                            : `<button class="btn btn-primary btn-small" onclick="event.stopPropagation();abrirChat('${c.id}')">💬 Chat</button>`;
+                        h += `<tr onclick="abrirChat('${c.id}')" style="cursor:pointer;"><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td><span class="status ${sc}">${sl}</span></td><td>${acoes}</td></tr>`;
                     });
                     h += '</tbody></table></div>';
-                    h += '<div id="chatPainel" style="margin-top:16px;' + (chatSelecionado ? '' : 'display:none;') + '"></div>';
                     el.innerHTML = h;
                     if (chatSelecionado) renderizarChat(chatSelecionado, compras);
                 }, (err) => { console.error('Pagamentos error:', err); });
 
-                window.abrirChat = (id) => { chatSelecionado = id; };
-
-                async function renderizarChat(compraId, compras) {
-                    const compra = compras.find(c => c.id === compraId);
-                    if (!compra) return;
-                    const msgs = compra.mensagens || [];
+                window.abrirChat = async (compraId) => {
                     const panel = document.getElementById('chatPainel');
                     if (!panel) return;
-                    let msgsHtml = '';
-                    if (msgs.length === 0) {
-                        msgsHtml = '<div style="text-align:center;color:#555;padding:20px;">Nenhuma mensagem ainda.</div>';
-                    } else {
-                        msgs.forEach(m => {
-                            const ehUser = m.remetente === 'usuario';
-                            const data = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
-                            msgsHtml += `<div style="max-width:80%;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:6px;${ehUser ? 'background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:2px;' : 'background:#222;color:#ccc;align-self:flex-start;border-bottom-left-radius:2px;'}">${m.texto}<div style="font-size:10px;color:${ehUser ? 'rgba(255,255,255,0.4)' : '#555'};margin-top:3px;">${data}</div></div>`;
-                        });
-                    }
-                    const entregue = compra.status === 'entregue';
                     panel.style.display = 'block';
-                    panel.innerHTML = `
-                        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <h3 style="color:var(--accent);">Chat - ${compra.produtoNome || 'Produto'}</h3>
-                                <div style="display:flex;gap:4px;">
-                                    ${compra.status === 'aprovado' && !entregue ? `<button class="btn btn-success btn-small" onclick="marcarEntregue('${compraId}')">🎉 Entregue!</button>` : ''}
-                                    <button class="btn btn-secondary btn-small" onclick="fecharChat()">Fechar</button>
+                    panel.innerHTML = '<p style="color:#666;text-align:center;padding:20px;">Carregando chat...</p>';
+                    if (window._unsubChat) window._unsubChat();
+                    window._unsubChat = onSnapshot(doc(db, "compras", compraId), (d) => {
+                        const c = d.data();
+                        if (!c) return;
+                        const msgs = c.mensagens || [];
+                        let msgsHtml = '';
+                        if (msgs.length === 0) {
+                            msgsHtml = '<div style="text-align:center;color:#555;padding:20px;font-size:13px;">Nenhuma mensagem ainda. Envie algo para o comprador!</div>';
+                        } else {
+                            msgs.forEach(m => {
+                                const ehUser = m.remetente === 'usuario';
+                                const data = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
+                                msgsHtml += `<div style="max-width:80%;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:6px;${ehUser ? 'background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:2px;' : 'background:#222;color:#ccc;align-self:flex-start;border-bottom-left-radius:2px;'}">${m.texto}<div style="font-size:10px;color:${ehUser ? 'rgba(255,255,255,0.4)' : '#555'};margin-top:3px;">${data}</div></div>`;
+                            });
+                        }
+                        const entregue = c.status === 'entregue';
+                        panel.innerHTML = `
+                            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                    <h3 style="color:var(--accent);">Chat - ${c.produtoNome || 'Produto'} <span style="font-size:12px;color:#666;">#${compraId.substring(0,6)}</span></h3>
+                                    <button class="btn btn-secondary btn-small" onclick="document.getElementById('chatPainel').style.display='none';">Fechar</button>
                                 </div>
+                                <div style="display:flex;flex-direction:column;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;margin-bottom:12px;" id="chatMsgsContainer">
+                                    ${msgsHtml}
+                                </div>
+                                ${entregue
+                                    ? '<div style="text-align:center;padding:12px;background:rgba(16,185,129,0.1);border:1px solid var(--green);border-radius:8px;color:var(--green);font-weight:600;">Produto entregue! 🎉</div>'
+                                    : `<div style="display:flex;gap:8px;">
+                                        <input type="text" id="adminMsgInput" placeholder="Digite a mensagem..." style="flex:1;padding:10px 14px;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;">
+                                        <button class="btn btn-primary btn-small" onclick="enviarMsgAdmin('${compraId}')">Enviar</button>
+                                        ${c.status === 'aprovado' ? `<button class="btn btn-success btn-small" onclick="marcarEntregue('${compraId}')">🎉 Entregue!</button>` : ''}
+                                    </div>`
+                                }
                             </div>
-                            <div style="display:flex;flex-direction:column;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;margin-bottom:12px;">
-                                ${msgsHtml}
-                            </div>
-                            ${entregue
-                                ? '<div style="text-align:center;padding:12px;background:rgba(16,185,129,0.1);border:1px solid var(--green);border-radius:8px;color:var(--green);font-weight:600;">Produto entregue! 🎉</div>'
-                                : `<div style="display:flex;gap:8px;">
-                                    <input type="text" id="adminMsgInput" placeholder="Digite a mensagem..." style="flex:1;padding:10px 14px;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;">
-                                    <button class="btn btn-primary btn-small" onclick="enviarMsgAdmin('${compraId}')">Enviar</button>
-                                </div>`
-                            }
-                        </div>
-                    `;
-                    setTimeout(() => {
-                        const input = document.getElementById('adminMsgInput');
-                        if (input) input.addEventListener('keydown', (e) => { if(e.key==='Enter') enviarMsgAdmin(compraId); });
-                    }, 100);
-                }
-
-                window.fecharChat = () => { chatSelecionado = ''; };
-                window.marcarEntregue = async (id) => {
-                    try {
-                        await updateDoc(doc(db, "compras", id), { status: 'entregue', dataEntrega: new Date().toISOString(), mensagens: arrayUnion({ remetente: 'admin', texto: 'Produto entregue! 🎉', data: new Date().toISOString() }) });
-                        mostrarNotificacao('Produto marcado como entregue!', 'sucesso');
-                    } catch(err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+                        `;
+                        setTimeout(() => {
+                            const inp = document.getElementById('adminMsgInput');
+                            if (inp) inp.addEventListener('keydown', (e) => { if(e.key==='Enter') enviarMsgAdmin(compraId); });
+                            const container = document.getElementById('chatMsgsContainer');
+                            if (container) container.scrollTop = container.scrollHeight;
+                        }, 100);
+                    }, (err) => { console.error(err); panel.innerHTML = '<p style="color:var(--red);">Erro ao carregar chat</p>'; });
                 };
+
                 window.enviarMsgAdmin = async (id) => {
                     const input = document.getElementById('adminMsgInput');
                     const texto = input ? input.value.trim() : '';
                     if(!texto) return;
                     input.value = '';
+                    try { await updateDoc(doc(db, "compras", id), { mensagens: arrayUnion({ remetente: 'admin', texto, data: new Date().toISOString() }) }); } catch(err) { console.error(err); }
+                };
+
+                window.marcarEntregue = async (id) => {
                     try {
-                        await updateDoc(doc(db, "compras", id), { mensagens: arrayUnion({ remetente: 'admin', texto, data: new Date().toISOString() }) });
-                    } catch(err) { console.error(err); }
+                        await updateDoc(doc(db, "compras", id), { status: 'entregue', dataEntrega: new Date().toISOString(), mensagens: arrayUnion({ remetente: 'admin', texto: 'Produto entregue! 🎉', data: new Date().toISOString() }) });
+                        mostrarNotificacao('Produto marcado como entregue!', 'sucesso');
+                    } catch(err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
                 };
             } catch (e) { console.error('Observer error:', e); }
         }
