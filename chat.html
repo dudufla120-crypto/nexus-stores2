@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .chat-container { max-width:700px; margin:0 auto; display:flex; flex-direction:column; height:calc(100vh - 80px); }
+        .chat-header { padding:16px 20px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px 12px 0 0; }
+        .chat-header h2 { color:var(--accent); font-size:18px; }
+        .chat-header small { color:#666; }
+        .chat-msgs { flex:1; overflow-y:auto; padding:16px; background:#0a0a0a; border:1px solid var(--border); border-top:none; border-bottom:none; display:flex; flex-direction:column; gap:8px; }
+        .msg { max-width:80%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.4; animation:fadeInUp 0.2s; }
+        .msg-usuario { background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+        .msg-admin { background:#222; color:#ccc; align-self:flex-start; border-bottom-left-radius:4px; }
+        .msg-data { font-size:10px; color:rgba(255,255,255,0.4); margin-top:4px; }
+        .msg-usuario .msg-data { color:rgba(255,255,255,0.5); }
+        .chat-input-area { display:flex; gap:8px; padding:12px; background:var(--bg-card); border:1px solid var(--border); border-radius:0 0 12px 12px; }
+        .chat-input-area input { flex:1; padding:10px 14px; background:#0a0a0a; border:1px solid var(--border); border-radius:8px; color:#fff; font-size:14px; }
+        .chat-input-area input:focus { outline:none; border-color:var(--accent); }
+        .chat-status { text-align:center; padding:8px; font-size:12px; color:#666; }
+        .celebration-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; animation:fadeIn 0.5s; }
+        .celebration-box { text-align:center; animation:slideUp 0.5s; }
+        .celebration-emoji { font-size:120px; animation:celebrate 1s infinite; }
+        .celebration-text { font-size:28px; color:var(--green); font-weight:900; margin:20px 0 10px; }
+        .celebration-sub { color:#aaa; font-size:16px; }
+        .celebration-btn { margin-top:30px; padding:12px 40px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; }
+        .celebration-btn:hover { background:var(--accent-hover); }
+        @keyframes celebrate { 0%,100%{transform:scale(1) rotate(0deg)} 25%{transform:scale(1.1) rotate(-5deg)} 75%{transform:scale(1.1) rotate(5deg)} }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><span>Nexus Stores</span></div>
+        <ul class="nav-links">
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="dashboard.html">Meu Perfil</a></li>
+            <li><a href="admin.html" id="adminLink" style="display:none;">Painel ADM</a></li>
+            <li><a id="logoutBtn">Sair</a></li>
+        </ul>
+    </nav>
+
+    <div class="container chat-container">
+        <div class="chat-header" id="chatHeader">
+            <h2>Carregando...</h2>
+        </div>
+        <div class="chat-msgs" id="chatMsgs">
+            <div style="text-align:center;color:#666;padding:40px;">Carregando mensagens...</div>
+        </div>
+        <div class="chat-input-area" id="chatInputArea" style="display:none;">
+            <input type="text" id="msgInput" placeholder="Digite sua mensagem..." maxlength="500">
+            <button class="btn btn-primary" id="enviarBtn">Enviar</button>
+        </div>
+        <div class="chat-status" id="chatStatus"></div>
+    </div>
+
+    <div id="celebrationContainer"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc, arrayUnion, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA1IFV10wUyzo_gX2hnvXCgARyXanN_5Zg",
+            authDomain: "nexus-stores.firebaseapp.com",
+            projectId: "nexus-stores",
+            storageBucket: "nexus-stores.firebasestorage.app",
+            messagingSenderId: "68773888286",
+            appId: "1:68773888286:web:2f72c4debc72bf2576c90f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const params = new URLSearchParams(window.location.search);
+        const compraId = params.get('compraId');
+
+        let usuarioEhAdmin = false;
+        let compraStatus = '';
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href); return; }
+            if (!compraId) { document.getElementById('chatHeader').innerHTML = '<h2 style="color:var(--red);">Compra nao encontrada</h2>'; return; }
+
+            try {
+                const userSnap = await getDoc(doc(db, "usuarios", user.uid));
+                const userData = userSnap.data() || {};
+                usuarioEhAdmin = userData.admin === true;
+                if (usuarioEhAdmin) document.getElementById('adminLink').style.display = 'inline';
+
+                const compraRef = doc(db, "compras", compraId);
+                const compraSnap = await getDoc(compraRef);
+                if (!compraSnap.exists()) {
+                    document.getElementById('chatHeader').innerHTML = '<h2 style="color:var(--red);">Compra nao encontrada</h2>';
+                    return;
+                }
+                const compra = compraSnap.data();
+
+                if (compra.usuario !== user.uid && !usuarioEhAdmin) {
+                    document.getElementById('chatHeader').innerHTML = '<h2 style="color:var(--red);">Acesso negado</h2>';
+                    return;
+                }
+
+                document.getElementById('chatHeader').innerHTML = `
+                    <h2>${compra.produtoNome || 'Produto'}</h2>
+                    <small>Compra #${compraId.substring(0,6)}</small>
+                `;
+
+                if (!usuarioEhAdmin) {
+                    document.getElementById('chatInputArea').style.display = 'flex';
+                }
+
+                onSnapshot(compraRef, (d) => {
+                    const c = d.data();
+                    if (!c) return;
+                    compraStatus = c.status || 'pendente';
+                    const msgs = c.mensagens || [];
+                    const el = document.getElementById('chatMsgs');
+
+                    if (c.status === 'entregue') {
+                        mostrarCelebracao();
+                    }
+
+                    if (compraStatus === 'pendente') {
+                        document.getElementById('chatStatus').textContent = 'Aguardando pagamento...';
+                    } else if (compraStatus === 'aprovado') {
+                        document.getElementById('chatStatus').textContent = 'Pagamento confirmado!';
+                    } else if (compraStatus === 'entregue') {
+                        document.getElementById('chatStatus').textContent = 'Produto entregue!';
+                    } else if (compraStatus === 'recusado') {
+                        document.getElementById('chatStatus').textContent = 'Pagamento recusado.';
+                    }
+
+                    if (msgs.length === 0) {
+                        el.innerHTML = '<div style="text-align:center;color:#555;padding:40px;font-size:14px;">Nenhuma mensagem ainda.<br>O admin respondera em breve.</div>';
+                        return;
+                    }
+
+                    let html = '';
+                    msgs.forEach(m => {
+                        const ehUsuario = m.remetente === 'usuario';
+                        const data = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
+                        html += `<div class="msg ${ehUsuario ? 'msg-usuario' : 'msg-admin'}">${m.texto}<div class="msg-data">${data}</div></div>`;
+                    });
+                    el.innerHTML = html;
+                    el.scrollTop = el.scrollHeight;
+                }, (err) => {
+                    console.error(err);
+                    document.getElementById('chatMsgs').innerHTML = '<div style="text-align:center;color:var(--red);padding:40px;">Erro ao carregar chat</div>';
+                });
+
+                document.getElementById('enviarBtn').addEventListener('click', enviarMensagem);
+                document.getElementById('msgInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarMensagem(); });
+
+                async function enviarMensagem() {
+                    const input = document.getElementById('msgInput');
+                    const texto = input.value.trim();
+                    if (!texto) return;
+                    input.value = '';
+                    try {
+                        await updateDoc(compraRef, {
+                            mensagens: arrayUnion({
+                                remetente: usuarioEhAdmin ? 'admin' : 'usuario',
+                                texto: texto,
+                                data: new Date().toISOString()
+                            })
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        alert('Erro ao enviar mensagem');
+                    }
+                }
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('chatHeader').innerHTML = '<h2 style="color:var(--red);">Erro ao carregar</h2>';
+            }
+        });
+
+        function mostrarCelebracao() {
+            const container = document.getElementById('celebrationContainer');
+            if (container.innerHTML) return;
+            container.innerHTML = `
+                <div class="celebration-overlay">
+                    <div class="celebration-box">
+                        <div class="celebration-emoji">🎉</div>
+                        <div class="celebration-text">VOCE FEZ SUA COMPRA<br>COM SUCESSO!</div>
+                        <div class="celebration-sub">Volte sempre! 🚀</div>
+                        <button class="celebration-btn" onclick="document.getElementById('celebrationContainer').innerHTML=''">Continuar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

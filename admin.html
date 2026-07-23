@@ -148,7 +148,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { mostrarNotificacao, formatarData, formatarPreco, imagemParaBase64, mostrarModal } from './js/helper.js';
 
         const firebaseConfig = {
@@ -282,27 +282,91 @@
             } catch (e) { console.error('Init error:', e); }
 
             try {
+                let chatSelecionado = '';
                 onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
                     const compras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const el = document.getElementById('listaPagamentos');
                     if (compras.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma compra.</p>'; return; }
-                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Acoes</th><th>Entrega</th></tr></thead><tbody>';
+                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Status</th><th>Acoes</th></tr></thead><tbody>';
                     compras.forEach(c => {
                         const pendente = c.status === 'pendente';
                         const sc = pendente ? 'status-pendente' : c.status === 'aprovado' ? 'status-aprovado' : 'status-recusado';
                         const sl = pendente ? 'Pendente' : c.status === 'aprovado' ? 'Aprovado' : 'Recusado';
-                        const ch = c.comprovante ? `<img src="${c.comprovante}" class="comprovante-preview" onclick="window.open('${c.comprovante}')">` : '—';
-                        const acoes = pendente ? `<button class="btn btn-success btn-small" onclick="aprovarPagamento('${c.id}')" style="margin-right:4px;">✓</button><button class="btn btn-danger btn-small" onclick="recusarPagamento('${c.id}')">✗</button>` : '<span style="color:#666;font-size:13px;">Finalizado</span>';
-                        const entregaHtml = c.status === 'aprovado'
-                            ? (c.mensagemEntrega
-                                ? `<div style="font-size:12px;color:var(--green);">${c.mensagemEntrega}</div>`
-                                : `<div style="display:flex;gap:4px;"><input type="text" id="entregaInput_${c.id}" placeholder="Codigo do produto..." style="flex:1;padding:4px 8px;background:#0a0a0a;border:1px solid var(--border);border-radius:4px;color:#fff;font-size:12px;"><button class="btn btn-success btn-small" onclick="entregarProduto('${c.id}')">Entregar</button></div>`)
-                            : '---';
-                        h += `<tr><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${sc}">${sl}</span></td><td>${ch}</td><td>${acoes}</td><td>${entregaHtml}</td></tr>`;
+                        const acoes = pendente
+                            ? `<button class="btn btn-success btn-small" onclick="event.stopPropagation();aprovarPagamento('${c.id}')">✓ Aprovar</button> <button class="btn btn-danger btn-small" onclick="event.stopPropagation();recusarPagamento('${c.id}')">✗ Recusar</button>`
+                            : `<span style="color:#666;font-size:13px;"><button class="btn btn-success btn-small" onclick="event.stopPropagation();abrirChat('${c.id}')">💬 Chat</button></span>`;
+                        const active = chatSelecionado === c.id ? 'style="background:rgba(139,92,246,0.1);"' : '';
+                        h += `<tr ${active} onclick="abrirChat('${c.id}')" style="cursor:pointer;"><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td><span class="status ${sc}">${sl}</span></td><td>${acoes}</td></tr>`;
+                    });
+                    h += '</tbody></table></div>';
+                    h += '<div id="chatPainel" style="margin-top:16px;' + (chatSelecionado ? '' : 'display:none;') + '"></div>';
+                    el.innerHTML = h;
+                    if (chatSelecionado) renderizarChat(chatSelecionado, compras);
+                }, (err) => { console.error('Pagamentos error:', err); });
+
+                window.abrirChat = (id) => { chatSelecionado = id; };
+
+                async function renderizarChat(compraId, compras) {
+                    const compra = compras.find(c => c.id === compraId);
+                    if (!compra) return;
+                    const msgs = compra.mensagens || [];
+                    const panel = document.getElementById('chatPainel');
+                    if (!panel) return;
+                    let msgsHtml = '';
+                    if (msgs.length === 0) {
+                        msgsHtml = '<div style="text-align:center;color:#555;padding:20px;">Nenhuma mensagem ainda.</div>';
+                    } else {
+                        msgs.forEach(m => {
+                            const ehUser = m.remetente === 'usuario';
+                            const data = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
+                            msgsHtml += `<div style="max-width:80%;padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:6px;${ehUser ? 'background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:2px;' : 'background:#222;color:#ccc;align-self:flex-start;border-bottom-left-radius:2px;'}">${m.texto}<div style="font-size:10px;color:${ehUser ? 'rgba(255,255,255,0.4)' : '#555'};margin-top:3px;">${data}</div></div>`;
                         });
-                        h += '</tbody></table></div>';
-                        el.innerHTML = h;
-                    }, (err) => { console.error('Pagamentos error:', err); });
+                    }
+                    const entregue = compra.status === 'entregue';
+                    panel.style.display = 'block';
+                    panel.innerHTML = `
+                        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h3 style="color:var(--accent);">Chat - ${compra.produtoNome || 'Produto'}</h3>
+                                <div style="display:flex;gap:4px;">
+                                    ${compra.status === 'aprovado' && !entregue ? `<button class="btn btn-success btn-small" onclick="marcarEntregue('${compraId}')">🎉 Entregue!</button>` : ''}
+                                    <button class="btn btn-secondary btn-small" onclick="fecharChat()">Fechar</button>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto;margin-bottom:12px;">
+                                ${msgsHtml}
+                            </div>
+                            ${entregue
+                                ? '<div style="text-align:center;padding:12px;background:rgba(16,185,129,0.1);border:1px solid var(--green);border-radius:8px;color:var(--green);font-weight:600;">Produto entregue! 🎉</div>'
+                                : `<div style="display:flex;gap:8px;">
+                                    <input type="text" id="adminMsgInput" placeholder="Digite a mensagem..." style="flex:1;padding:10px 14px;background:#0a0a0a;border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;">
+                                    <button class="btn btn-primary btn-small" onclick="enviarMsgAdmin('${compraId}')">Enviar</button>
+                                </div>`
+                            }
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        const input = document.getElementById('adminMsgInput');
+                        if (input) input.addEventListener('keydown', (e) => { if(e.key==='Enter') enviarMsgAdmin(compraId); });
+                    }, 100);
+                }
+
+                window.fecharChat = () => { chatSelecionado = ''; };
+                window.marcarEntregue = async (id) => {
+                    try {
+                        await updateDoc(doc(db, "compras", id), { status: 'entregue', dataEntrega: new Date().toISOString(), mensagens: arrayUnion({ remetente: 'admin', texto: 'Produto entregue! 🎉', data: new Date().toISOString() }) });
+                        mostrarNotificacao('Produto marcado como entregue!', 'sucesso');
+                    } catch(err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+                };
+                window.enviarMsgAdmin = async (id) => {
+                    const input = document.getElementById('adminMsgInput');
+                    const texto = input ? input.value.trim() : '';
+                    if(!texto) return;
+                    input.value = '';
+                    try {
+                        await updateDoc(doc(db, "compras", id), { mensagens: arrayUnion({ remetente: 'admin', texto, data: new Date().toISOString() }) });
+                    } catch(err) { console.error(err); }
+                };
             } catch (e) { console.error('Observer error:', e); }
         }
 
@@ -435,25 +499,29 @@
         });
 
         window.aprovarPagamento = async (id) => {
-            const r = await mostrarModal('Aprovar Pagamento', 'Confirmar recebimento?', [{ texto: 'Sim, Aprovar', acao: 'ok', classe: 'btn-success' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            const r = await mostrarModal('Aprovar Pagamento', 'Confirmar recebimento do PIX?', [{ texto: 'Sim, Aprovar', acao: 'ok', classe: 'btn-success' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
             if (r !== 'ok') return;
-            try { await updateDoc(doc(db, "compras", id), { status: 'aprovado', dataAprovacao: new Date().toISOString() }); mostrarNotificacao('Aprovado! Agora envie o codigo do produto no campo "Entrega"', 'sucesso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
-        };
-
-        window.entregarProduto = async (id) => {
-            const input = document.getElementById('entregaInput_' + id);
-            const msg = input ? input.value.trim() : '';
-            if (!msg) { mostrarNotificacao('Digite o codigo do produto', 'aviso'); return; }
             try {
-                await updateDoc(doc(db, "compras", id), { mensagemEntrega: msg, dataEntrega: new Date().toISOString() });
-                mostrarNotificacao('Produto entregue!', 'sucesso');
-            } catch (err) { console.error(err); mostrarNotificacao('Erro ao entregar', 'erro'); }
+                await updateDoc(doc(db, "compras", id), {
+                    status: 'aprovado',
+                    dataAprovacao: new Date().toISOString(),
+                    mensagens: arrayUnion({ remetente: 'admin', texto: 'Pagamento confirmado! Vou preparar seu produto.', data: new Date().toISOString() })
+                });
+                mostrarNotificacao('Aprovado! Chat aberto', 'sucesso');
+            } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
         window.recusarPagamento = async (id) => {
             const r = await mostrarModal('Recusar Pagamento', 'Recusar este pagamento?', [{ texto: 'Sim, Recusar', acao: 'ok', classe: 'btn-danger' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
             if (r !== 'ok') return;
-            try { await updateDoc(doc(db, "compras", id), { status: 'recusado', dataRecusa: new Date().toISOString() }); mostrarNotificacao('Recusado', 'aviso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+            try {
+                await updateDoc(doc(db, "compras", id), {
+                    status: 'recusado',
+                    dataRecusa: new Date().toISOString(),
+                    mensagens: arrayUnion({ remetente: 'admin', texto: 'Pagamento recusado. Entre em contato para mais informacoes.', data: new Date().toISOString() })
+                });
+                mostrarNotificacao('Recusado', 'aviso');
+            } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {
