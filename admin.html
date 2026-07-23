@@ -17,9 +17,10 @@
                 <li><a data-aba="admins" id="adminsLink" style="display:none;">Admins</a></li>
                 <li><a data-aba="logo">Logo</a></li>
                 <li><a data-aba="pix">PIX</a></li>
-                <li><a data-aba="pagamentos">Pagamentos</a></li>
-                <li><a data-aba="assinaturas">Assinaturas</a></li>
-                <li><a data-aba="suporte">Suporte</a></li>
+                <li><a data-aba="pagamentos">Pagamentos <span class="notif-badge" id="badgePagamentos" style="display:none;">0</span></a></li>
+                <li><a data-aba="assinaturas">Assinaturas <span class="notif-badge" id="badgeAssinaturas" style="display:none;">0</span></a></li>
+                <li><a data-aba="suporte">Suporte <span class="notif-badge" id="badgeSuporte" style="display:none;">0</span></a></li>
+                <li><a data-aba="notificacoes">Notificacoes <span class="notif-badge" id="badgeNotificacoes" style="display:none;">0</span></a></li>
                 <li><a href="index.html">Ver Site</a></li>
                 <li><a id="logoutBtn">Sair</a></li>
             </ul>
@@ -117,6 +118,22 @@
                 </div>
                 <div id="suporteChatPainel" style="margin-top:16px;display:none;"></div>
             </div>
+
+            <div class="tab-content" id="tab-notificacoes">
+                <h1>Notificações</h1>
+                <div class="card" style="margin-bottom:16px;">
+                    <h3>Configurar Notificações</h3>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="notifPagamentos" checked style="accent-color:var(--accent);width:18px;height:18px;"> Pagamentos pendentes</label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="notifAssinaturas" checked style="accent-color:var(--accent);width:18px;height:18px;"> Novas assinaturas</label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="notifSuporte" checked style="accent-color:var(--accent);width:18px;height:18px;"> Mensagens de suporte</label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="notifProdutos" style="accent-color:var(--accent);width:18px;height:18px;"> Novos produtos</label>
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;"><input type="checkbox" id="notifUsuarios" style="accent-color:var(--accent);width:18px;height:18px;"> Novos usuarios</label>
+                        <button class="btn btn-primary btn-small" id="salvarNotifConfig" style="align-self:flex-start;margin-top:4px;">Salvar Config</button>
+                    </div>
+                </div>
+                <div id="listaNotificacoes" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
+            </div>
         </main>
     </div>
 
@@ -185,6 +202,28 @@
 
         let jogos = [];
         let editandoJogoId = null;
+
+        function atulizarBadge(elId, count) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            if (count > 0) { el.style.display = 'inline-flex'; el.textContent = count; }
+            else el.style.display = 'none';
+            atulizarBadgeNotificacoes();
+        }
+
+        function atulizarBadgeNotificacoes() {
+            const total = ['badgePagamentos','badgeAssinaturas','badgeSuporte'].reduce((s, id) => {
+                const el = document.getElementById(id);
+                return s + (el?.style.display !== 'none' ? parseInt(el.textContent || '0') : 0);
+            }, 0);
+            atulizarBadge('badgeNotificacoes', total);
+        }
+
+        let notifConfig = JSON.parse(localStorage.getItem('notifConfig') || '{"pagamentos":true,"assinaturas":true,"suporte":true,"produtos":false,"usuarios":false}');
+
+        function salvarNotifConfigStorage() {
+            localStorage.setItem('notifConfig', JSON.stringify(notifConfig));
+        }
 
         onAuthStateChanged(auth, async (user) => {
             try {
@@ -306,6 +345,8 @@
                 onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
                     const compras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const el = document.getElementById('listaPagamentos');
+                    const pendentes = compras.filter(c => c.status === 'pendente' && c.tipo !== 'assinatura');
+                    atulizarBadge('badgePagamentos', pendentes.length);
                     if (compras.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma compra.</p>'; return; }
                     let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Status</th><th>Acoes</th></tr></thead><tbody>';
                     compras.forEach(c => {
@@ -391,6 +432,8 @@
                 onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
                     const assinaturas = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.tipo === 'assinatura');
                     const el = document.getElementById('listaAssinaturas');
+                    const pendentes = assinaturas.filter(a => a.status === 'pendente');
+                    atulizarBadge('badgeAssinaturas', pendentes.length);
                     if (assinaturas.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma assinatura.</p>'; return; }
                     let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Plano</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead><tbody>';
                     assinaturas.forEach(a => {
@@ -407,6 +450,8 @@
                 onSnapshot(collection(db, "chats_suporte"), (snap) => {
                     const chats = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
                     const el = document.getElementById('listaSuporte');
+                    const comMsgUsuario = chats.filter(c => { const msgs = c.mensagens || []; return msgs.length > 0 && msgs[msgs.length - 1].remetente === 'usuario'; });
+                    atulizarBadge('badgeSuporte', comMsgUsuario.length);
                     if (chats.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum chat de suporte.</p>'; return; }
                     let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Ultima Msg</th><th>Acoes</th></tr></thead><tbody>';
                     chats.sort((a, b) => (b.ultimaAtividade || '').localeCompare(a.ultimaAtividade || ''));
@@ -419,6 +464,106 @@
                     el.innerHTML = h;
                 }, (err) => { console.error(err); });
             } catch (e) { console.error(e); }
+
+            carregarNotificacoes();
+
+            const nc = document.getElementById('notifPagamentos');
+            if (nc) nc.checked = notifConfig.pagamentos;
+            document.getElementById('notifAssinaturas').checked = notifConfig.assinaturas;
+            document.getElementById('notifSuporte').checked = notifConfig.suporte;
+            document.getElementById('notifProdutos').checked = notifConfig.produtos;
+            document.getElementById('notifUsuarios').checked = notifConfig.usuarios;
+
+            document.getElementById('salvarNotifConfig').addEventListener('click', () => {
+                notifConfig.pagamentos = document.getElementById('notifPagamentos').checked;
+                notifConfig.assinaturas = document.getElementById('notifAssinaturas').checked;
+                notifConfig.suporte = document.getElementById('notifSuporte').checked;
+                notifConfig.produtos = document.getElementById('notifProdutos').checked;
+                notifConfig.usuarios = document.getElementById('notifUsuarios').checked;
+                salvarNotifConfigStorage();
+                mostrarNotificacao('Config salva!', 'sucesso');
+                carregarNotificacoes();
+            });
+        }
+
+        async function carregarNotificacoes() {
+            try {
+                const el = document.getElementById('listaNotificacoes');
+                let notifs = [];
+
+                if (notifConfig.pagamentos) {
+                    const snap = await getDocs(query(collection(db, "compras"), orderBy("data", "desc")));
+                    snap.forEach(d => {
+                        const c = d.data();
+                        if (c.status === 'pendente' && c.tipo !== 'assinatura') {
+                            notifs.push({ tipo: 'pagamento', texto: `Pagamento pendente: ${c.username || '---'} - R$${(c.valor||0).toFixed(2)}`, data: c.data, icone: '💳' });
+                        }
+                    });
+                }
+
+                if (notifConfig.assinaturas) {
+                    const snap = await getDocs(query(collection(db, "compras"), orderBy("data", "desc")));
+                    snap.forEach(d => {
+                        const c = d.data();
+                        if (c.tipo === 'assinatura' && c.status === 'pendente') {
+                            notifs.push({ tipo: 'assinatura', texto: `Nova assinatura: ${c.username || '---'} - ${c.plano}`, data: c.data, icone: '⭐' });
+                        }
+                    });
+                }
+
+                if (notifConfig.suporte) {
+                    const snap = await getDocs(collection(db, "chats_suporte"));
+                    snap.forEach(d => {
+                        const c = d.data();
+                        const msgs = c.mensagens || [];
+                        if (msgs.length > 0 && msgs[msgs.length - 1].remetente === 'usuario') {
+                            const ultima = msgs[msgs.length - 1].texto?.substring(0, 50) || '';
+                            notifs.push({ tipo: 'suporte', texto: `Msg de ${c.username || '---'}: "${ultima}"`, data: msgs[msgs.length - 1].data, icone: '💬' });
+                        }
+                    });
+                }
+
+                if (notifConfig.usuarios) {
+                    const snap = await getDocs(query(collection(db, "usuarios"), orderBy("dataCadastro", "desc")));
+                    let count = 0;
+                    snap.forEach(d => {
+                        if (count < 5) {
+                            const u = d.data();
+                            notifs.push({ tipo: 'usuario', texto: `Novo usuario: ${u.username || '---'}`, data: u.dataCadastro, icone: '👤' });
+                            count++;
+                        }
+                    });
+                }
+
+                if (notifConfig.produtos) {
+                    const snap = await getDocs(query(collection(db, "produtos"), orderBy("dataCriacao", "desc")));
+                    let count = 0;
+                    snap.forEach(d => {
+                        if (count < 5) {
+                            const p = d.data();
+                            notifs.push({ tipo: 'produto', texto: `Novo produto: ${p.nome || '---'}`, data: p.dataCriacao, icone: '📦' });
+                            count++;
+                        }
+                    });
+                }
+
+                notifs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+
+                if (notifs.length === 0) {
+                    el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma notificacao no momento.</p>';
+                    return;
+                }
+
+                el.innerHTML = notifs.slice(0, 30).map(n => `
+                    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #222;">
+                        <span style="font-size:20px;">${n.icone}</span>
+                        <div style="flex:1;">
+                            <div style="font-size:13px;">${n.texto}</div>
+                            <div style="font-size:11px;color:#666;margin-top:2px;">${n.data ? formatarData(n.data) : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) { console.error(err); }
         }
 
         document.getElementById('jogoForm').addEventListener('submit', async (e) => {

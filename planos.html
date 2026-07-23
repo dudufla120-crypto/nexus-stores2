@@ -194,6 +194,7 @@
         function renderizarPlanos(userData) {
             const grid = document.getElementById('planosGrid');
             const temPlano = userData && (userData.mesesAssinatura || 0) > 0;
+            const meses = userData?.mesesAssinatura || 0;
 
             const planos = [
                 {
@@ -203,7 +204,7 @@
                         'Adicionar amigos',
                         'Pre-venda / Em Breve',
                         'Chat direto com ADM',
-                        temPlano ? 'Ja contratado ✓' : '1% OFF +1% por mes'
+                        temPlano ? `${meses}m ativos - Assine +1` : '1% OFF +1% por mes'
                     ]
                 },
                 {
@@ -213,7 +214,7 @@
                         'Suporte Exclusivo (fila prioritaria)',
                         'Chat Pos-Compra VIP c/ notificacao',
                         'Tag Prata no perfil',
-                        temPlano ? 'Ja contratado ✓' : '4% OFF +1% por mes'
+                        temPlano ? `${meses}m ativos - Assine +1` : '4% OFF +1% por mes'
                     ]
                 },
                 {
@@ -225,7 +226,7 @@
                         'Sugestoes (botao exclusivo)',
                         '1 Produto Gratis por mes',
                         'Participa de sorteios',
-                        temPlano ? 'Ja contratado ✓' : '7% OFF +1% por mes'
+                        temPlano ? `${meses}m ativos - Assine +1` : '7% OFF +1% por mes'
                     ]
                 }
             ];
@@ -233,9 +234,8 @@
             let html = '';
             planos.forEach(p => {
                 const jaTem = userData && userData.plano === p.id;
-                const btnHtml = jaTem
-                    ? '<button class="btn btn-secondary" disabled style="opacity:0.6;">Assinado</button>'
-                    : `<button class="btn ${p.destaque ? 'btn-primary' : 'btn-secondary'}" onclick="assinarPlano('${p.id}')">Assinar - R$${p.preco}/mes</button>`;
+                const btnText = jaTem ? 'Assinar +1 mes - R$' + p.preco : `Assinar - R$${p.preco}/mes`;
+                const btnHtml = `<button class="btn ${p.destaque ? 'btn-primary' : 'btn-secondary'}" onclick="assinarPlano('${p.id}')">${btnText}</button>`;
 
                 html += `
                     <div class="plano-card ${p.destaque ? 'plano-destaque' : ''}">
