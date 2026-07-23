@@ -9,17 +9,17 @@
 <body>
     <div class="admin-layout">
         <aside class="admin-sidebar">
-            <h2>🔐 Nexus ADM</h2>
+            <h2>Nexus ADM</h2>
             <ul class="admin-links">
-                <li><a class="active" data-aba="dashboard">📊 Dashboard</a></li>
-                <li><a data-aba="jogos">🎮 Jogos</a></li>
-                <li><a data-aba="produtos">📦 Produtos</a></li>
-                <li><a data-aba="admins" id="adminsLink" style="display:none;">👑 Admins</a></li>
-                <li><a data-aba="logo">🖼️ Logo</a></li>
-                <li><a data-aba="pix">💳 PIX</a></li>
-                <li><a data-aba="pagamentos">💰 Pagamentos</a></li>
-                <li><a href="index.html">← Ver Site</a></li>
-                <li><a id="logoutBtn">🚪 Sair</a></li>
+                <li><a class="active" data-aba="dashboard">Dashboard</a></li>
+                <li><a data-aba="jogos">Jogos</a></li>
+                <li><a data-aba="produtos">Produtos</a></li>
+                <li><a data-aba="admins" id="adminsLink" style="display:none;">Admins</a></li>
+                <li><a data-aba="logo">Logo</a></li>
+                <li><a data-aba="pix">PIX</a></li>
+                <li><a data-aba="pagamentos">Pagamentos</a></li>
+                <li><a href="index.html">Ver Site</a></li>
+                <li><a id="logoutBtn">Sair</a></li>
             </ul>
         </aside>
 
@@ -27,7 +27,7 @@
             <div class="tab-content active" id="tab-dashboard">
                 <h1>Dashboard</h1>
                 <div class="stats-grid" id="statsGrid">
-                    <div class="stat-card"><div class="stat-number" id="statUsuarios">-</div><div class="stat-label">Usuários</div></div>
+                    <div class="stat-card"><div class="stat-number" id="statUsuarios">-</div><div class="stat-label">Usuarios</div></div>
                     <div class="stat-card"><div class="stat-number" id="statProdutos">-</div><div class="stat-label">Produtos</div></div>
                     <div class="stat-card"><div class="stat-number" id="statVendas">-</div><div class="stat-label">Vendas</div></div>
                     <div class="stat-card"><div class="stat-number" id="statReceita">-</div><div class="stat-label">Receita Total</div></div>
@@ -54,24 +54,18 @@
                         </div>
                     </form>
                 </div>
-                <div id="listaJogos" class="card">
-                    <p style="color:var(--text-secondary);">Carregando...</p>
-                </div>
+                <div id="listaJogos" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
             </div>
 
             <div class="tab-content" id="tab-produtos">
                 <h1>Gerenciar Produtos</h1>
-                <button class="btn btn-primary" onclick="abrirModalProduto()" style="margin-bottom:16px;">+ Novo Produto</button>
-                <div id="listaProdutos" class="card">
-                    <p style="color:var(--text-secondary);">Carregando...</p>
-                </div>
+                <button class="btn btn-primary" onclick="document.getElementById('modalProduto').classList.add('active')" style="margin-bottom:16px;">+ Novo Produto</button>
+                <div id="listaProdutos" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
             </div>
 
             <div class="tab-content" id="tab-admins">
                 <h1>Gerenciar Admins</h1>
-                <div id="listaUsuarios" class="card">
-                    <p style="color:var(--text-secondary);">Carregando...</p>
-                </div>
+                <div id="listaUsuarios" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
             </div>
 
             <div class="tab-content" id="tab-logo">
@@ -92,22 +86,20 @@
                     <form id="pixForm">
                         <div class="form-group">
                             <label>Chave PIX (CPF, Email, Telefone)</label>
-                            <input type="text" class="form-input" id="chavePix" placeholder="Ex: seuemail@gmail.com" required>
+                            <input type="text" class="form-input" id="chavePix" required>
                         </div>
                         <div class="form-group">
                             <label>Nome Completo do Titular</label>
-                            <input type="text" class="form-input" id="nomePix" placeholder="Ex: Joao Silva" required>
+                            <input type="text" class="form-input" id="nomePix" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Salvar Configuração PIX</button>
+                        <button type="submit" class="btn btn-primary">Salvar Configuracao PIX</button>
                     </form>
                 </div>
             </div>
 
             <div class="tab-content" id="tab-pagamentos">
                 <h1>Confirmar Pagamentos</h1>
-                <div id="listaPagamentos" class="card">
-                    <p style="color:var(--text-secondary);">Carregando...</p>
-                </div>
+                <div id="listaPagamentos" class="card"><p style="color:var(--text-secondary);">Carregando...</p></div>
             </div>
         </main>
     </div>
@@ -125,11 +117,11 @@
                     <select class="form-input" id="prodJogo" required></select>
                 </div>
                 <div class="form-group">
-                    <label>Preço (R$)</label>
+                    <label>Preco (R$)</label>
                     <input type="number" class="form-input" id="prodPreco" step="0.01" min="0.01" required>
                 </div>
                 <div class="form-group">
-                    <label>Descrição</label>
+                    <label>Descricao</label>
                     <textarea class="form-input" id="prodDescricao" rows="3"></textarea>
                 </div>
                 <div class="form-group">
@@ -154,34 +146,43 @@
     }
     </script>
     <script type="module">
-        import { auth, db } from './js/firebase-config.js';
-        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { collection, doc, updateDoc, getDoc, getDocs, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-        import { getCurrentUserData, listarUsuarios, promoverAdmin, rebaixarAdmin } from './js/auth.js';
-        import { adicionarProduto, removerProduto, listarProdutosPorJogo, listarJogos, adicionarJogo, removerJogo, atualizarJogo, getJogo, observarProdutos, observarJogos } from './js/products.js';
-        import { getStats, salvarLogo, getLogo, salvarPixConfig, getPixConfig, observarCompras, aprovarCompra, recusarCompra } from './js/admin.js';
-        import { mostrarModal, mostrarNotificacao, formatarData, formatarPreco, imagemParaBase64 } from './js/helper.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { mostrarNotificacao, formatarData, formatarPreco, imagemParaBase64, mostrarModal } from './js/helper.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyA1IFV10wUyzo_gX2hnvXCgARyXanN_5Zg",
+            authDomain: "nexus-stores.firebaseapp.com",
+            projectId: "nexus-stores",
+            storageBucket: "nexus-stores.firebasestorage.app",
+            messagingSenderId: "68773888286",
+            appId: "1:68773888286:web:2f72c4debc72bf2576c90f"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let jogos = [];
+        let editandoJogoId = null;
 
         onAuthStateChanged(auth, async (user) => {
             try {
                 if (!user) { window.location.href = 'login.html'; return; }
-                const userData = await getCurrentUserData();
-                if (!userData || !userData.admin) {
-                    mostrarNotificacao('Acesso negado!', 'erro');
+                const snap = await getDoc(doc(db, "usuarios", user.uid));
+                if (!snap.exists() || !snap.data().admin) {
+                    mostrarNotificacao('Acesso negado', 'erro');
                     window.location.href = 'index.html';
                     return;
                 }
-
+                const userData = { uid: user.uid, ...snap.data() };
                 const isDono = userData.username && userData.username.toLowerCase() === 'eduba120';
-                if (isDono) {
-                    document.getElementById('adminsLink').style.display = 'flex';
-                }
-
+                if (isDono) document.getElementById('adminsLink').style.display = 'flex';
                 window._isDono = isDono;
-                iniciarPainel();
+                carregarTudo();
             } catch (err) {
-                console.error('Erro fatal no admin:', err);
-                mostrarNotificacao('Erro ao carregar painel: ' + err.message, 'erro');
+                console.error(err);
+                mostrarNotificacao('Erro ao iniciar: ' + err.message, 'erro');
             }
         });
 
@@ -190,103 +191,154 @@
                 e.preventDefault();
                 const aba = a.dataset.aba;
                 if (aba === 'admins' && !window._isDono) {
-                    mostrarNotificacao('Apenas eduba120 pode gerenciar admins', 'erro');
+                    mostrarNotificacao('Apenas eduba120', 'erro');
                     return;
                 }
                 document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.admin-links a').forEach(link => link.classList.remove('active'));
+                document.querySelectorAll('.admin-links a').forEach(l => l.classList.remove('active'));
                 document.getElementById('tab-' + aba).classList.add('active');
                 a.classList.add('active');
             });
         });
 
-        let jogos = [];
-        let editandoJogoId = null;
+        async function carregarTudo() {
+            try {
+                await Promise.all([
+                    (async () => {
+                        try {
+                            const [u, p, c] = await Promise.all([
+                                getDocs(collection(db, "usuarios")),
+                                getDocs(collection(db, "produtos")),
+                                getDocs(collection(db, "compras"))
+                            ]);
+                            let vendas = 0, receita = 0;
+                            c.forEach(d => { if (d.data().status === 'aprovado') { vendas++; receita += parseFloat(d.data().valor || 0); } });
+                            document.getElementById('statUsuarios').textContent = u.size;
+                            document.getElementById('statProdutos').textContent = p.size;
+                            document.getElementById('statVendas').textContent = vendas;
+                            document.getElementById('statReceita').textContent = 'R$ ' + receita.toFixed(2);
+                        } catch (e) { console.error('Stats error:', e); }
+                    })(),
+                    (async () => {
+                        try {
+                            const snap = await getDocs(query(collection(db, "jogos"), orderBy("nome")));
+                            jogos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            const el = document.getElementById('listaJogos');
+                            if (jogos.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum jogo.</p>'; return; }
+                            let h = '<div class="admin-table"><table><thead><tr><th>Imagem</th><th>Nome</th><th>Acoes</th></tr></thead><tbody>';
+                            jogos.forEach(j => {
+                                h += `<tr><td>${j.imagem ? `<img src="${j.imagem}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">` : '<span style="color:#666;">🎮</span>'}</td><td><strong>${j.nome}</strong></td><td><button class="btn btn-secondary btn-small" onclick="editarJogo('${j.id}')">Editar</button> <button class="btn btn-danger btn-small" onclick="excluirJogo('${j.id}')">Excluir</button></td></tr>`;
+                            });
+                            h += '</tbody></table></div>';
+                            el.innerHTML = h;
+                            document.getElementById('prodJogo').innerHTML = jogos.map(j => `<option value="${j.id}">${j.nome}</option>`).join('');
+                        } catch (e) { console.error('Jogos error:', e); mostrarNotificacao('Erro ao carregar jogos', 'erro'); }
+                    })(),
+                    (async () => {
+                        try {
+                            const snap = await getDocs(query(collection(db, "produtos"), orderBy("dataCriacao", "desc")));
+                            const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                            const el = document.getElementById('listaProdutos');
+                            if (prods.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum produto.</p>'; return; }
+                            let h = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Jogo</th><th>Preco</th><th>Acoes</th></tr></thead><tbody>';
+                            prods.forEach(p => {
+                                const jn = jogos.find(j => j.id === p.jogoId)?.nome || '—';
+                                h += `<tr><td>${p.nome}</td><td>${jn}</td><td>${formatarPreco(p.preco)}</td><td><button class="btn btn-danger btn-small" onclick="excluirProduto('${p.id}')">Excluir</button></td></tr>`;
+                            });
+                            h += '</tbody></table></div>';
+                            el.innerHTML = h;
+                        } catch (e) { console.error('Produtos error:', e); mostrarNotificacao('Erro ao carregar produtos', 'erro'); }
+                    })(),
+                    (async () => {
+                        try {
+                            const snap = await getDocs(collection(db, "usuarios"));
+                            const usuarios = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                            const el = document.getElementById('listaUsuarios');
+                            if (usuarios.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum usuario.</p>'; return; }
+                            let h = '<div class="admin-table"><table><thead><tr><th>Username</th><th>Tipo</th><th>Acoes</th></tr></thead><tbody>';
+                            usuarios.forEach(u => {
+                                h += `<tr><td>${u.username}</td><td>${u.admin ? '<span class="status status-aprovado">Admin</span>' : '<span class="status status-pendente">Usuario</span>'}</td><td>${u.admin ? `<button class="btn btn-secondary btn-small" onclick="rebaixar('${u.uid}')">Remover Admin</button>` : `<button class="btn btn-primary btn-small" onclick="promover('${u.uid}')">Promover</button>`}</td></tr>`;
+                            });
+                            h += '</tbody></table></div>';
+                            el.innerHTML = h;
+                        } catch (e) { console.error('Usuarios error:', e); mostrarNotificacao('Erro ao carregar usuarios', 'erro'); }
+                    })(),
+                    (async () => {
+                        try {
+                            const snap = await getDoc(doc(db, "config", "geral"));
+                            const logo = snap.data()?.logoBase64;
+                            if (logo) document.getElementById('logoPreview').innerHTML = `<img src="${logo}" style="max-width:300px;max-height:100px;border-radius:8px;border:1px solid var(--border);">`;
+                        } catch (e) { console.error('Logo error:', e); }
+                    })(),
+                    (async () => {
+                        try {
+                            const snap = await getDoc(doc(db, "config", "geral"));
+                            const d = snap.data() || {};
+                            document.getElementById('chavePix').value = d.chavePix || '';
+                            document.getElementById('nomePix').value = d.nomePix || '';
+                        } catch (e) { console.error('PIX error:', e); }
+                    })()
+                ]);
+            } catch (e) { console.error('Init error:', e); }
 
-        async function iniciarPainel() {
-            await Promise.all([
-                carregarStats(), carregarJogos(), carregarProdutos(),
-                carregarUsuarios(), carregarLogo(), carregarPixConf()
-            ]);
-            carregarPagamentos();
-        }
-
-        async function carregarStats() {
-            const s = await getStats();
-            document.getElementById('statUsuarios').textContent = s.totalUsuarios;
-            document.getElementById('statProdutos').textContent = s.totalProdutos;
-            document.getElementById('statVendas').textContent = s.totalVendas;
-            document.getElementById('statReceita').textContent = 'R$ ' + s.totalReceita.toFixed(2);
-        }
-
-        async function carregarJogos() {
-            jogos = await listarJogos();
-            const container = document.getElementById('listaJogos');
-            if (jogos.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum jogo cadastrado.</p>';
-                return;
-            }
-            let html = '<div class="admin-table"><table><thead><tr><th>Imagem</th><th>Nome</th><th>Ações</th></tr></thead><tbody>';
-            for (const j of jogos) {
-                const imgHtml = j.imagem
-                    ? `<img src="${j.imagem}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;">`
-                    : '<span style="color:#666;">🎮</span>';
-                html += `
-                    <tr>
-                        <td>${imgHtml}</td>
-                        <td><strong>${j.nome}</strong></td>
-                        <td>
-                            <button class="btn btn-secondary btn-small" onclick="editarJogo('${j.id}')">✏️ Editar</button>
-                            <button class="btn btn-danger btn-small" onclick="confirmarExcluirJogo('${j.id}')">🗑️ Excluir</button>
-                        </td>
-                    </tr>
-                `;
-            }
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-
-            const select = document.getElementById('prodJogo');
-            select.innerHTML = jogos.map(j => `<option value="${j.id}">${j.nome}</option>`).join('');
+            try {
+                onSnapshot(query(collection(db, "compras"), orderBy("data", "desc")), (snap) => {
+                    const compras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const el = document.getElementById('listaPagamentos');
+                    if (compras.length === 0) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma compra.</p>'; return; }
+                    let h = '<div class="admin-table"><table><thead><tr><th>Usuario</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Acoes</th></tr></thead><tbody>';
+                    compras.forEach(c => {
+                        const pendente = c.status === 'pendente';
+                        const sc = pendente ? 'status-pendente' : c.status === 'aprovado' ? 'status-aprovado' : 'status-recusado';
+                        const sl = pendente ? 'Pendente' : c.status === 'aprovado' ? 'Aprovado' : 'Recusado';
+                        const ch = c.comprovante ? `<img src="${c.comprovante}" class="comprovante-preview" onclick="window.open('${c.comprovante}')">` : '—';
+                        const acoes = pendente ? `<button class="btn btn-success btn-small" onclick="aprovarPagamento('${c.id}')" style="margin-right:4px;">✓</button><button class="btn btn-danger btn-small" onclick="recusarPagamento('${c.id}')">✗</button>` : '<span style="color:#666;font-size:13px;">Finalizado</span>';
+                        h += `<tr><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${sc}">${sl}</span></td><td>${ch}</td><td>${acoes}</td></tr>`;
+                    });
+                    h += '</tbody></table></div>';
+                    el.innerHTML = h;
+                }, (err) => { console.error('Pagamentos error:', err); });
+            } catch (e) { console.error('Observer error:', e); }
         }
 
         document.getElementById('jogoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const nome = document.getElementById('jogoNome').value.trim();
-            if (!nome) { mostrarNotificacao('Digite um nome', 'aviso'); return; }
-            const fileInput = document.getElementById('jogoImagem');
-            let imagemBase64 = '';
-            if (fileInput.files[0]) imagemBase64 = await imagemParaBase64(fileInput.files[0]);
-
-            if (editandoJogoId) {
-                const ok = await atualizarJogo(editandoJogoId, { nome, imagem: imagemBase64 || undefined });
-                if (ok) mostrarNotificacao('Jogo atualizado!', 'sucesso');
-                cancelarEdicaoJogo();
-            } else {
-                await adicionarJogo(nome, imagemBase64);
-                document.getElementById('jogoNome').value = '';
-                document.getElementById('jogoImagem').value = '';
-                document.getElementById('jogoImagemPreview').innerHTML = '';
-            }
-            await carregarJogos();
-            await carregarStats();
+            try {
+                const nome = document.getElementById('jogoNome').value.trim();
+                if (!nome) { mostrarNotificacao('Digite um nome', 'aviso'); return; }
+                const fi = document.getElementById('jogoImagem');
+                let img = '';
+                if (fi.files[0]) img = await imagemParaBase64(fi.files[0]);
+                if (editandoJogoId) {
+                    await updateDoc(doc(db, "jogos", editandoJogoId), { nome, imagem: img || undefined });
+                    mostrarNotificacao('Jogo atualizado!', 'sucesso');
+                    cancelarEdicao();
+                } else {
+                    await addDoc(collection(db, "jogos"), { nome, imagem: img, dataCriacao: new Date().toISOString() });
+                    document.getElementById('jogoNome').value = '';
+                    document.getElementById('jogoImagem').value = '';
+                    document.getElementById('jogoImagemPreview').innerHTML = '';
+                }
+                await carregarTudo();
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao salvar jogo', 'erro'); }
         });
 
         window.editarJogo = async (id) => {
-            const jogo = await getJogo(id);
-            if (!jogo) return;
-            editandoJogoId = id;
-            document.getElementById('jogoFormTitle').textContent = 'Editar Jogo';
-            document.getElementById('jogoFormBtn').textContent = 'Atualizar';
-            document.getElementById('jogoNome').value = jogo.nome;
-            document.getElementById('cancelarEdicaoJogo').style.display = 'inline-block';
-            if (jogo.imagem) {
-                document.getElementById('jogoImagemPreview').innerHTML = `<img src="${jogo.imagem}" style="max-width:120px;border-radius:8px;">`;
-            }
-            mostrarNotificacao('Editando: ' + jogo.nome, 'info');
+            try {
+                const snap = await getDoc(doc(db, "jogos", id));
+                if (!snap.exists()) return;
+                const j = snap.data();
+                editandoJogoId = id;
+                document.getElementById('jogoFormTitle').textContent = 'Editar Jogo';
+                document.getElementById('jogoFormBtn').textContent = 'Atualizar';
+                document.getElementById('jogoNome').value = j.nome;
+                document.getElementById('cancelarEdicaoJogo').style.display = 'inline-block';
+                if (j.imagem) document.getElementById('jogoImagemPreview').innerHTML = `<img src="${j.imagem}" style="max-width:120px;border-radius:8px;">`;
+            } catch (err) { console.error(err); }
         };
 
-        document.getElementById('cancelarEdicaoJogo').addEventListener('click', cancelarEdicaoJogo);
-        function cancelarEdicaoJogo() {
+        document.getElementById('cancelarEdicaoJogo').addEventListener('click', cancelarEdicao);
+        function cancelarEdicao() {
             editandoJogoId = null;
             document.getElementById('jogoFormTitle').textContent = 'Novo Jogo';
             document.getElementById('jogoFormBtn').textContent = 'Salvar Jogo';
@@ -299,197 +351,94 @@
         document.getElementById('jogoImagem').addEventListener('change', (e) => {
             if (e.target.files[0]) {
                 const r = new FileReader();
-                r.onload = (ev) => {
-                    document.getElementById('jogoImagemPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:120px;border-radius:8px;">`;
-                };
+                r.onload = (ev) => document.getElementById('jogoImagemPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:120px;border-radius:8px;">`;
                 r.readAsDataURL(e.target.files[0]);
             }
         });
 
-        window.confirmarExcluirJogo = async (id) => {
-            const jogo = jogos.find(j => j.id === id);
-            const acao = await mostrarModal('Excluir Jogo',
-                `Tem certeza que deseja excluir <strong>${jogo?.nome || 'este jogo'}</strong>?<br><br>Os produtos associados a ele continuarão no banco.`,
-                [
-                    { texto: 'Sim, Excluir', acao: 'confirmar', classe: 'btn-danger' },
-                    { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-                ]
-            );
-            if (acao === 'confirmar') {
-                const ok = await removerJogo(id);
-                if (ok) await carregarJogos();
-            }
+        window.excluirJogo = async (id) => {
+            const r = await mostrarModal('Excluir Jogo', 'Tem certeza?', [{ texto: 'Sim', acao: 'ok', classe: 'btn-danger' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await deleteDoc(doc(db, "jogos", id)); mostrarNotificacao('Jogo excluido!', 'sucesso'); await carregarTudo(); } catch (err) { console.error(err); mostrarNotificacao('Erro ao excluir', 'erro'); }
         };
-
-        async function carregarProdutos() {
-            const produtos = await listarProdutosPorJogo('todos');
-            const container = document.getElementById('listaProdutos');
-            if (produtos.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum produto cadastrado.</p>';
-                return;
-            }
-            let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Jogo</th><th>Preço</th><th>Ações</th></tr></thead><tbody>';
-            for (const p of produtos) {
-                const jogoNome = jogos.find(j => j.id === p.jogoId)?.nome || '—';
-                html += `<tr><td>${p.nome}</td><td>${jogoNome}</td><td>${formatarPreco(p.preco)}</td><td><button class="btn btn-danger btn-small" onclick="confirmarExcluirProduto('${p.id}')">Excluir</button></td></tr>`;
-            }
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-        }
-
-        window.confirmarExcluirProduto = async (id) => {
-            const acao = await mostrarModal('Excluir Produto', 'Tem certeza que deseja excluir este produto?', [
-                { texto: 'Sim, Excluir', acao: 'confirmar', classe: 'btn-danger' },
-                { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-            ]);
-            if (acao === 'confirmar') {
-                const ok = await removerProduto(id);
-                if (ok) { await carregarProdutos(); await carregarStats(); }
-            }
-        };
-
-        window.abrirModalProduto = () => document.getElementById('modalProduto').classList.add('active');
 
         document.getElementById('produtoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const nome = document.getElementById('prodNome').value.trim();
-            const jogoId = document.getElementById('prodJogo').value;
-            const preco = parseFloat(document.getElementById('prodPreco').value);
-            const descricao = document.getElementById('prodDescricao').value.trim();
-            const fileInput = document.getElementById('prodImagem');
-
-            if (!nome || !jogoId || !preco) { mostrarNotificacao('Preencha nome, jogo e preço', 'aviso'); return; }
-
-            let imagemBase64 = '';
-            if (fileInput.files[0]) imagemBase64 = await imagemParaBase64(fileInput.files[0]);
-
-            const result = await adicionarProduto({ nome, jogoId, preco, descricao, imagemBase64 });
-            if (result) {
+            try {
+                const nome = document.getElementById('prodNome').value.trim();
+                const jogoId = document.getElementById('prodJogo').value;
+                const preco = parseFloat(document.getElementById('prodPreco').value);
+                const descricao = document.getElementById('prodDescricao').value.trim();
+                const fi = document.getElementById('prodImagem');
+                if (!nome || !jogoId || !preco) { mostrarNotificacao('Preencha nome, jogo e preco', 'aviso'); return; }
+                let img = '';
+                if (fi.files[0]) img = await imagemParaBase64(fi.files[0]);
+                await addDoc(collection(db, "produtos"), { nome, jogoId, preco, descricao, imagemBase64: img, dataCriacao: new Date().toISOString() });
                 document.getElementById('modalProduto').classList.remove('active');
                 document.getElementById('produtoForm').reset();
-                await carregarProdutos();
-                await carregarStats();
-            }
+                mostrarNotificacao('Produto adicionado!', 'sucesso');
+                await carregarTudo();
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao adicionar produto', 'erro'); }
         });
 
-        async function carregarUsuarios() {
-            const usuarios = await listarUsuarios();
-            const container = document.getElementById('listaUsuarios');
-            if (usuarios.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhum usuário.</p>';
-                return;
-            }
-            let html = '<div class="admin-table"><table><thead><tr><th>Username</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>';
-            usuarios.forEach(u => {
-                const badge = u.admin
-                    ? '<span class="status status-aprovado">👑 Admin</span>'
-                    : '<span class="status status-pendente">👤 Usuário</span>';
-                html += `<tr><td>${u.username}</td><td>${badge}</td><td>${
-                    u.admin
-                        ? `<button class="btn btn-secondary btn-small" onclick="confirmarRebaixar('${u.uid}')">Remover Admin</button>`
-                        : `<button class="btn btn-primary btn-small" onclick="confirmarPromover('${u.uid}')">Promover</button>`
-                }</td></tr>`;
-            });
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-        }
-
-        window.confirmarPromover = async (uid) => {
-            const acao = await mostrarModal('Promover Usuário', 'Tornar este usuário administrador?', [
-                { texto: 'Sim, Promover', acao: 'confirmar', classe: 'btn-primary' },
-                { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-            ]);
-            if (acao === 'confirmar') { await promoverAdmin(uid); await carregarUsuarios(); }
+        window.excluirProduto = async (id) => {
+            const r = await mostrarModal('Excluir Produto', 'Tem certeza?', [{ texto: 'Sim', acao: 'ok', classe: 'btn-danger' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await deleteDoc(doc(db, "produtos", id)); mostrarNotificacao('Produto excluido!', 'sucesso'); await carregarTudo(); } catch (err) { console.error(err); mostrarNotificacao('Erro ao excluir', 'erro'); }
         };
 
-        window.confirmarRebaixar = async (uid) => {
-            const acao = await mostrarModal('Remover Admin', 'Remover privilégios de admin deste usuário?', [
-                { texto: 'Sim, Remover', acao: 'confirmar', classe: 'btn-danger' },
-                { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-            ]);
-            if (acao === 'confirmar') { await rebaixarAdmin(uid); await carregarUsuarios(); }
+        window.promover = async (uid) => {
+            const r = await mostrarModal('Promover', 'Tornar este usuario admin?', [{ texto: 'Sim', acao: 'ok', classe: 'btn-primary' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await setDoc(doc(db, "usuarios", uid), { admin: true }, { merge: true }); mostrarNotificacao('Promovido!', 'sucesso'); await carregarTudo(); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
-        async function carregarLogo() {
-            const logo = await getLogo();
-            if (logo) {
-                document.getElementById('logoPreview').innerHTML = `<img src="${logo}" style="max-width:300px;max-height:100px;border-radius:8px;border:1px solid var(--border);">`;
-            }
-        }
+        window.rebaixar = async (uid) => {
+            const r = await mostrarModal('Remover Admin', 'Remover privilegios de admin?', [{ texto: 'Sim', acao: 'ok', classe: 'btn-danger' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await setDoc(doc(db, "usuarios", uid), { admin: false }, { merge: true }); mostrarNotificacao('Admin removido!', 'sucesso'); await carregarTudo(); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
+        };
 
         document.getElementById('logoInput').addEventListener('change', (e) => {
             if (e.target.files[0]) {
                 const r = new FileReader();
-                r.onload = (ev) => {
-                    document.getElementById('logoPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:300px;max-height:100px;border-radius:8px;border:1px solid var(--border);">`;
-                };
+                r.onload = (ev) => document.getElementById('logoPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:300px;max-height:100px;border-radius:8px;border:1px solid var(--border);">`;
                 r.readAsDataURL(e.target.files[0]);
             }
         });
 
         document.getElementById('salvarLogoBtn').addEventListener('click', async () => {
-            const file = document.getElementById('logoInput').files[0];
-            if (!file) { mostrarNotificacao('Selecione uma imagem primeiro', 'aviso'); return; }
-            const base64 = await imagemParaBase64(file);
-            const ok = await salvarLogo(base64);
-            if (ok) document.getElementById('logoInput').value = '';
+            const fi = document.getElementById('logoInput');
+            if (!fi.files[0]) { mostrarNotificacao('Selecione uma imagem', 'aviso'); return; }
+            try {
+                const base64 = await imagemParaBase64(fi.files[0]);
+                await setDoc(doc(db, "config", "geral"), { logoBase64: base64 }, { merge: true });
+                mostrarNotificacao('Logo salva!', 'sucesso');
+                fi.value = '';
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao salvar logo', 'erro'); }
         });
-
-        async function carregarPixConf() {
-            const config = await getPixConfig();
-            document.getElementById('chavePix').value = config.chavePix || '';
-            document.getElementById('nomePix').value = config.nomePix || '';
-        }
 
         document.getElementById('pixForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const chavePix = document.getElementById('chavePix').value.trim();
-            const nomePix = document.getElementById('nomePix').value.trim();
-            if (!chavePix || !nomePix) { mostrarNotificacao('Preencha todos os campos', 'aviso'); return; }
-            await salvarPixConfig(chavePix, nomePix);
+            try {
+                const chavePix = document.getElementById('chavePix').value.trim();
+                const nomePix = document.getElementById('nomePix').value.trim();
+                if (!chavePix || !nomePix) { mostrarNotificacao('Preencha todos os campos', 'aviso'); return; }
+                await setDoc(doc(db, "config", "geral"), { chavePix, nomePix }, { merge: true });
+                mostrarNotificacao('PIX configurado!', 'sucesso');
+            } catch (err) { console.error(err); mostrarNotificacao('Erro ao salvar PIX', 'erro'); }
         });
 
-        function carregarPagamentos() {
-            observarCompras((compras) => {
-                const container = document.getElementById('listaPagamentos');
-                if (!compras || compras.length === 0) {
-                    container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Nenhuma compra registrada.</p>';
-                    return;
-                }
-                let html = '<div class="admin-table"><table><thead><tr><th>Usuário</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Ações</th></tr></thead><tbody>`;
-                compras.forEach(c => {
-                    const pendente = c.status === 'pendente';
-                    const statusClass = pendente ? 'status-pendente' : c.status === 'aprovado' ? 'status-aprovado' : 'status-recusado';
-                    const statusLabel = pendente ? 'Pendente' : c.status === 'aprovado' ? 'Aprovado' : 'Recusado';
-                    const comprovanteHtml = c.comprovante
-                        ? `<img src="${c.comprovante}" class="comprovante-preview" onclick="window.open('${c.comprovante}')">`
-                        : '—';
-                    const acoes = pendente
-                        ? `<button class="btn btn-success btn-small" onclick="confirmarAprovar('${c.id}')" style="margin-right:4px;">✓</button>
-                           <button class="btn btn-danger btn-small" onclick="confirmarRecusar('${c.id}')">✗</button>`
-                        : '<span style="color:#666;font-size:13px;">Finalizado</span>';
-
-                    html += `<tr><td>${c.username || '—'}</td><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${statusClass}">${statusLabel}</span></td><td>${comprovanteHtml}</td><td>${acoes}</td></tr>`;
-                });
-                html += '</tbody></table></div>';
-                container.innerHTML = html;
-            });
-        }
-
-        window.confirmarAprovar = async (id) => {
-            const acao = await mostrarModal('Aprovar Pagamento', 'Confirmar que o pagamento foi recebido?', [
-                { texto: 'Sim, Aprovar', acao: 'confirmar', classe: 'btn-success' },
-                { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-            ]);
-            if (acao === 'confirmar') await aprovarCompra(id);
+        window.aprovarPagamento = async (id) => {
+            const r = await mostrarModal('Aprovar Pagamento', 'Confirmar recebimento?', [{ texto: 'Sim, Aprovar', acao: 'ok', classe: 'btn-success' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await updateDoc(doc(db, "compras", id), { status: 'aprovado', dataAprovacao: new Date().toISOString() }); mostrarNotificacao('Aprovado!', 'sucesso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
-        window.confirmarRecusar = async (id) => {
-            const acao = await mostrarModal('Recusar Pagamento', 'Recusar este pagamento?', [
-                { texto: 'Sim, Recusar', acao: 'confirmar', classe: 'btn-danger' },
-                { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }
-            ]);
-            if (acao === 'confirmar') await recusarCompra(id);
+        window.recusarPagamento = async (id) => {
+            const r = await mostrarModal('Recusar Pagamento', 'Recusar este pagamento?', [{ texto: 'Sim, Recusar', acao: 'ok', classe: 'btn-danger' }, { texto: 'Cancelar', acao: 'cancelar', classe: 'btn-secondary' }]);
+            if (r !== 'ok') return;
+            try { await updateDoc(doc(db, "compras", id), { status: 'recusado', dataRecusa: new Date().toISOString() }); mostrarNotificacao('Recusado', 'aviso'); } catch (err) { console.error(err); mostrarNotificacao('Erro', 'erro'); }
         };
 
         document.getElementById('logoutBtn').addEventListener('click', async (e) => {
