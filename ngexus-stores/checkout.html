@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finalizar Compra - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <span>Nexus Stores</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html">Produtos</a></li>
+            <li><a href="dashboard.html">Meu Perfil</a></li>
+            <li><a href="" id="logoutBtn">Sair</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Finalizar Compra</h1>
+
+        <div id="checkoutContent" style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:24px;">
+            <div class="card" id="produtoInfo">
+                <p style="color:var(--text-secondary);">Carregando...</p>
+            </div>
+            <div class="card" id="pagamentoInfo">
+                <p style="color:var(--text-secondary);">Carregando...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { auth, db } from './js/firebase-config.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { gerarPixPayload, gerarQRCode, getConfigPix, finalizarCompra } from './js/checkout.js';
+        import { getCurrentUserData } from './js/auth.js';
+
+        const params = new URLSearchParams(window.location.search);
+        const produtoId = params.get('produtoId');
+
+        const produtoInfo = document.getElementById('produtoInfo');
+        const pagamentoInfo = document.getElementById('pagamentoInfo');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+                return;
+            }
+
+            if (!produtoId) {
+                produtoInfo.innerHTML = '<p style="color:var(--red);">Produto não encontrado!</p>';
+                pagamentoInfo.innerHTML = '';
+                return;
+            }
+
+            try {
+                const prodSnap = await getDoc(doc(db, "produtos", produtoId));
+                if (!prodSnap.exists()) {
+                    produtoInfo.innerHTML = '<p style="color:var(--red);">Produto não encontrado!</p>';
+                    pagamentoInfo.innerHTML = '';
+                    return;
+                }
+
+                const produto = { id: prodSnap.id, ...prodSnap.data() };
+                const configPix = await getConfigPix();
+                const userData = await getCurrentUserData();
+
+                const preco = parseFloat(produto.preco);
+                const imgHtml = produto.imagemBase64
+                    ? `<img src="${produto.imagemBase64}" class="product-image" style="height:200px;border-radius:8px;object-fit:cover;">`
+                    : '<div class="product-image">🎮</div>';
+
+                produtoInfo.innerHTML = `
+                    <h2 style="color:var(--accent);margin-bottom:16px;">Resumo do Pedido</h2>
+                    ${imgHtml}
+                    <div style="padding:16px 0;">
+                        <h3>${produto.nome}</h3>
+                        <p style="color:var(--text-secondary);">${produto.descricao || 'Sem descrição'}</p>
+                        <div class="product-price">${preco.toFixed(2)}</div>
+                    </div>
+                `;
+
+                if (!configPix.chavePix) {
+                    pagamentoInfo.innerHTML = `
+                        <h2 style="color:var(--yellow);margin-bottom:16px;">Pagamento Indisponível</h2>
+                        <p style="color:var(--text-secondary);">O admin ainda não configurou a chave PIX. Volte mais tarde.</p>
+                        <a href="index.html" class="btn btn-secondary" style="margin-top:16px;">Voltar</a>
+                    `;
+                    return;
+                }
+
+                const pixPayload = gerarPixPayload(configPix.chavePix, configPix.nomePix, 'Sao Paulo', preco);
+
+                pagamentoInfo.innerHTML = `
+                    <h2 style="color:var(--accent);margin-bottom:16px;">Pagamento via PIX</h2>
+                    <p style="color:var(--text-secondary);margin-bottom:16px;">Escaneie o QR Code abaixo com seu banco ou copie a chave PIX.</p>
+
+                    <div style="text-align:center;margin:20px 0;" id="qrcodeContainer">
+                        <div id="qrcode"></div>
+                    </div>
+
+                    <div style="background:var(--bg-primary);padding:12px;border-radius:8px;margin:16px 0;">
+                        <p style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">Chave PIX:</p>
+                        <p style="font-weight:600;word-break:break-all;" id="chavePixDisplay">${configPix.chavePix}</p>
+                    </div>
+
+                    <button class="btn btn-secondary btn-small" onclick="copiarChavePix()" style="margin-bottom:16px;">
+                        📋 Copiar Chave PIX
+                    </button>
+
+                    <div style="background:var(--accent-light);padding:16px;border-radius:8px;margin:16px 0;">
+                        <p style="color:var(--accent);font-weight:600;margin-bottom:8px;">💡 Após pagar:</p>
+                        <p style="color:var(--text-secondary);font-size:14px;">
+                            1. Pague com o QR Code ou copie a chave<br>
+                            2. Tire um print/foto do comprovante<br>
+                            3. Faça upload abaixo
+                        </p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Comprovante de Pagamento (foto/print)</label>
+                        <input type="file" class="form-input" id="comprovanteInput" accept="image/*" style="padding:10px;">
+                        <div id="previewComprovante" style="margin-top:8px;"></div>
+                    </div>
+
+                    <button class="btn btn-primary" style="width:100%;justify-content:center;" id="confirmarBtn">
+                        ✓ Já paguei - Confirmar Compra
+                    </button>
+                    <div id="checkoutStatus" style="margin-top:12px;"></div>
+                `;
+
+                gerarQRCode(pixPayload, 'qrcode');
+
+                window.copiarChavePix = function() {
+                    navigator.clipboard.writeText(configPix.chavePix).then(() => {
+                        alert('Chave PIX copiada!');
+                    }).catch(() => {
+                        alert('Copie manualmente: ' + configPix.chavePix);
+                    });
+                };
+
+                document.getElementById('comprovanteInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            document.getElementById('previewComprovante').innerHTML = `
+                                <img src="${ev.target.result}" style="max-width:200px;max-height:200px;border-radius:8px;border:1px solid var(--border);">
+                            `;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                document.getElementById('confirmarBtn').addEventListener('click', async () => {
+                    const btn = document.getElementById('confirmarBtn');
+                    const status = document.getElementById('checkoutStatus');
+                    const fileInput = document.getElementById('comprovanteInput');
+
+                    if (!fileInput.files[0]) {
+                        status.innerHTML = '<p style="color:var(--yellow);">Faça upload do comprovante antes de confirmar!</p>';
+                        return;
+                    }
+
+                    btn.disabled = true;
+                    btn.textContent = 'Enviando...';
+                    status.innerHTML = '';
+
+                    try {
+                        const reader = new FileReader();
+                        const comprovanteBase64 = await new Promise((resolve, reject) => {
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(fileInput.files[0]);
+                        });
+
+                        await finalizarCompra(user.uid, userData.username, produto, comprovanteBase64);
+
+                        status.innerHTML = '<p style="color:var(--green);font-weight:600;">✅ Compra realizada com sucesso! Aguarde o admin confirmar o pagamento.</p>';
+                        btn.textContent = '✓ Compra Confirmada';
+                        btn.style.display = 'none';
+                    } catch (err) {
+                        status.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
+                        btn.disabled = false;
+                        btn.textContent = '✓ Já paguei - Confirmar Compra';
+                    }
+                });
+
+            } catch (err) {
+                produtoInfo.innerHTML = '<p style="color:var(--red);">Erro ao carregar produto.</p>';
+                pagamentoInfo.innerHTML = '';
+                console.error(err);
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const { logout } = await import('./js/auth.js');
+            await logout();
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

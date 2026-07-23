@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <span>Nexus Stores</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html">Produtos</a></li>
+            <li><a href="dashboard.html" style="color:var(--accent);">Meu Perfil</a></li>
+            <li><a href="" id="adminLink" style="display:none;">Painel ADM</a></li>
+            <li><a href="" id="logoutBtn">Sair</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Meu Perfil</h1>
+        <div class="card" style="margin-top:20px;max-width:600px;">
+            <div id="profileInfo">
+                <p style="color:var(--text-secondary);">Carregando...</p>
+            </div>
+        </div>
+
+        <h2 style="margin-top:40px;">Minhas Compras</h2>
+        <div id="minhasCompras" class="card" style="margin-top:16px;">
+            <p style="color:var(--text-secondary);">Carregando...</p>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { auth, db } from './js/firebase-config.js';
+        import { logout, observarAuth, getCurrentUserData } from './js/auth.js';
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { collection, query, where, orderBy, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        const profileInfo = document.getElementById('profileInfo');
+        const adminLink = document.getElementById('adminLink');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const minhasCompras = document.getElementById('minhasCompras');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const userData = await getCurrentUserData();
+            if (!userData) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const adminBadge = userData.admin ? '<span class="product-game" style="background:rgba(245,158,11,0.1);color:var(--yellow);">ADMIN</span>' : '';
+
+            profileInfo.innerHTML = `
+                <h3>${userData.username} ${adminBadge}</h3>
+                <p style="color:var(--text-secondary);margin-top:8px;">Conta criada em ${new Date(userData.dataCadastro).toLocaleDateString('pt-BR')}</p>
+                <p style="color:var(--text-secondary);">UID: ${user.uid}</p>
+                <p style="color:var(--text-secondary);margin-top:16px;">Este é seu username único na Nexus Stores.</p>
+            `;
+
+            if (userData.admin) {
+                adminLink.style.display = 'inline';
+                adminLink.href = 'admin.html';
+            }
+
+            const q = query(
+                collection(db, "compras"),
+                where("usuario", "==", user.uid),
+                orderBy("data", "desc")
+            );
+
+            onSnapshot(q, (snap) => {
+                if (snap.empty) {
+                    minhasCompras.innerHTML = '<p style="color:var(--text-secondary);">Você ainda não fez nenhuma compra.</p>';
+                    return;
+                }
+
+                let html = '<div class="admin-table"><table style="width:100%;"><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead><tbody>';
+                snap.forEach(d => {
+                    const c = d.data();
+                    const statusClass = `status-${c.status}`;
+                    const statusLabel = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
+                    html += `
+                        <tr>
+                            <td>${c.produtoNome || 'Produto'}</td>
+                            <td>R$ ${parseFloat(c.valor || 0).toFixed(2)}</td>
+                            <td>${new Date(c.data).toLocaleDateString('pt-BR')}</td>
+                            <td><span class="status ${statusClass}">${statusLabel}</span></td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+                minhasCompras.innerHTML = html;
+            });
+        });
+
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await logout();
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

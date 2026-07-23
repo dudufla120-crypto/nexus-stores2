@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-box">
+            <div class="logo-center">
+                <img src="" alt="Nexus Stores" id="loginLogo" style="display:none;">
+                <h1 style="font-size:36px;color:var(--accent);">Nexus Stores</h1>
+            </div>
+            <h1>Entrar</h1>
+            <p class="subtitle">Digite seu username do Roblox e senha</p>
+
+            <div class="error-msg" id="errorMsg"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Username Roblox</label>
+                    <input type="text" class="form-input" id="username" placeholder="Ex: eduba120" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" class="form-input" id="password" placeholder="Sua senha" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" id="loginBtn">
+                    Entrar
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Não tem conta? <a href="register.html">Cadastre-se</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { auth, db } from './js/firebase-config.js';
+        import { login } from './js/auth.js';
+        import { getDoc, doc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+        const form = document.getElementById('loginForm');
+        const errorMsg = document.getElementById('errorMsg');
+        const loginBtn = document.getElementById('loginBtn');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.location.href = 'dashboard.html';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorMsg.classList.remove('show');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Entrando...';
+
+            try {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!username || !password) {
+                    throw new Error('Preencha todos os campos');
+                }
+
+                await login(username, password);
+                window.location.href = 'dashboard.html';
+            } catch (err) {
+                let msg = 'Erro ao fazer login. Verifique seus dados.';
+                if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                    msg = 'Username ou senha incorretos!';
+                } else if (err.code === 'auth/invalid-email') {
+                    msg = 'Username inválido!';
+                } else if (err.message) {
+                    msg = err.message;
+                }
+                errorMsg.textContent = msg;
+                errorMsg.classList.add('show');
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Entrar';
+            }
+        });
+    </script>
+</body>
+</html>
