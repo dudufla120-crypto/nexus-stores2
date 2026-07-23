@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Nexus Stores</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <h2>🔐 Nexus ADM</h2>
+            <ul class="admin-links">
+                <li><a class="active" onclick="mudarAba('dashboard')">📊 Dashboard</a></li>
+                <li><a onclick="mudarAba('jogos')">🎮 Jogos</a></li>
+                <li><a onclick="mudarAba('produtos')">📦 Produtos</a></li>
+                <li><a onclick="mudarAba('admins')">👑 Admins</a></li>
+                <li><a onclick="mudarAba('logo')">🖼️ Logo</a></li>
+                <li><a onclick="mudarAba('pix')">💳 PIX</a></li>
+                <li><a onclick="mudarAba('pagamentos')">💰 Pagamentos</a></li>
+                <li><a href="index.html">← Site</a></li>
+                <li><a href="" id="logoutBtn">🚪 Sair</a></li>
+            </ul>
+        </aside>
+
+        <main class="admin-content">
+            <!-- Dashboard -->
+            <div class="tab-content active" id="tab-dashboard">
+                <h1>Dashboard</h1>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card"><div class="stat-number" id="statUsuarios">-</div><div class="stat-label">Usuários</div></div>
+                    <div class="stat-card"><div class="stat-number" id="statProdutos">-</div><div class="stat-label">Produtos</div></div>
+                    <div class="stat-card"><div class="stat-number" id="statVendas">-</div><div class="stat-label">Vendas</div></div>
+                    <div class="stat-card"><div class="stat-number" id="statReceita">-</div><div class="stat-label">Receita Total</div></div>
+                </div>
+            </div>
+
+            <!-- Jogos -->
+            <div class="tab-content" id="tab-jogos">
+                <h1>Gerenciar Jogos</h1>
+                <form id="jogoForm" class="card" style="display:flex;gap:12px;align-items:end;max-width:500px;">
+                    <div class="form-group" style="flex:1;margin:0;">
+                        <label>Nome do Jogo</label>
+                        <input type="text" class="form-input" id="jogoNome" placeholder="Ex: Adopt Me" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Adicionar</button>
+                </form>
+                <div id="listaJogos" class="card" style="margin-top:16px;">
+                    <p style="color:var(--text-secondary);">Carregando...</p>
+                </div>
+            </div>
+
+            <!-- Produtos -->
+            <div class="tab-content" id="tab-produtos">
+                <h1>Gerenciar Produtos</h1>
+                <button class="btn btn-primary" onclick="abrirModalProduto()" style="margin-bottom:16px;">+ Novo Produto</button>
+                <div id="listaProdutos" class="card">
+                    <p style="color:var(--text-secondary);">Carregando...</p>
+                </div>
+            </div>
+
+            <!-- Admins -->
+            <div class="tab-content" id="tab-admins">
+                <h1>Gerenciar Admins</h1>
+                <div id="listaUsuarios" class="card">
+                    <p style="color:var(--text-secondary);">Carregando...</p>
+                </div>
+            </div>
+
+            <!-- Logo -->
+            <div class="tab-content" id="tab-logo">
+                <h1>Logo do Site</h1>
+                <div class="card" style="max-width:500px;">
+                    <div class="form-group">
+                        <label>Enviar Logo</label>
+                        <input type="file" class="form-input" id="logoInput" accept="image/*">
+                    </div>
+                    <div id="logoPreview" style="margin:16px 0;text-align:center;"></div>
+                    <button class="btn btn-primary" id="salvarLogoBtn">Salvar Logo</button>
+                    <div id="logoStatus" style="margin-top:8px;"></div>
+                </div>
+            </div>
+
+            <!-- PIX -->
+            <div class="tab-content" id="tab-pix">
+                <h1>Configurar PIX</h1>
+                <div class="card" style="max-width:500px;">
+                    <form id="pixForm">
+                        <div class="form-group">
+                            <label>Chave PIX (CPF, Email, Telefone ou CNPJ)</label>
+                            <input type="text" class="form-input" id="chavePix" placeholder="Ex: seuemail@gmail.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nome Completo do Titular da Chave</label>
+                            <input type="text" class="form-input" id="nomePix" placeholder="Ex: Joao Silva Santos" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Salvar Configuração PIX</button>
+                        <div id="pixStatus" style="margin-top:8px;"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Pagamentos -->
+            <div class="tab-content" id="tab-pagamentos">
+                <h1>Confirmar Pagamentos</h1>
+                <div id="listaPagamentos" class="card">
+                    <p style="color:var(--text-secondary);">Carregando...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Produto -->
+    <div class="modal" id="modalProduto">
+        <div class="modal-content">
+            <h2 id="modalProdutoTitle">Novo Produto</h2>
+            <form id="produtoForm">
+                <div class="form-group">
+                    <label>Nome do Produto</label>
+                    <input type="text" class="form-input" id="prodNome" required>
+                </div>
+                <div class="form-group">
+                    <label>Jogo</label>
+                    <select class="form-input" id="prodJogo" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Preço (R$)</label>
+                    <input type="number" class="form-input" id="prodPreco" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea class="form-input" id="prodDescricao" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Imagem do Produto</label>
+                    <input type="file" class="form-input" id="prodImagem" accept="image/*">
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalProduto()">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase-app": "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js",
+            "firebase-auth": "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js",
+            "firebase-firestore": "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js"
+        }
+    }
+    </script>
+    <script type="module">
+        import { auth, db } from './js/firebase-config.js';
+        import { getCurrentUserData, listarUsuarios, promoverAdmin, rebaixarAdmin } from './js/auth.js';
+        import { adicionarJogo, listarJogos, removerJogo, adicionarProduto, listarProdutosPorJogo, removerProduto, atualizarProduto } from './js/products.js';
+        import { getStats, salvarLogo, getLogo, salvarPixConfig, getPixConfig, observarCompras, aprovarCompra, recusarCompra, imagemParaBase64 } from './js/admin.js';
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+        import { collection, getDocs, query, orderBy, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+        let jogos = [];
+        let produtos = [];
+
+        // Auth check
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const userData = await getCurrentUserData();
+            if (!userData || !userData.admin) {
+                alert('Acesso negado! Apenas administradores.');
+                window.location.href = 'index.html';
+                return;
+            }
+            carregarTudo();
+        });
+
+        async function carregarTudo() {
+            await carregarStats();
+            await carregarJogos();
+            await carregarProdutos();
+            await carregarUsuarios();
+            await carregarLogo();
+            await carregarPix();
+            carregarPagamentos();
+        }
+
+        // Tabs
+        window.mudarAba = function(nome) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.admin-links a').forEach(a => a.classList.remove('active'));
+            const tab = document.getElementById('tab-' + nome);
+            if (tab) tab.classList.add('active');
+            const link = document.querySelector(`.admin-links a[onclick*="${nome}"]`);
+            if (link) link.classList.add('active');
+        };
+
+        // Stats
+        async function carregarStats() {
+            try {
+                const stats = await getStats();
+                document.getElementById('statUsuarios').textContent = stats.totalUsuarios;
+                document.getElementById('statProdutos').textContent = stats.totalProdutos;
+                document.getElementById('statVendas').textContent = stats.totalVendas;
+                document.getElementById('statReceita').textContent = 'R$ ' + stats.totalReceita.toFixed(2);
+            } catch (err) {
+                console.error('Erro stats:', err);
+            }
+        }
+
+        // Jogos
+        async function carregarJogos() {
+            try {
+                jogos = await listarJogos();
+                const container = document.getElementById('listaJogos');
+                if (jogos.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-secondary);">Nenhum jogo cadastrado.</p>';
+                } else {
+                    let html = '<div class="admin-table"><table style="width:100%;"><thead><tr><th>Nome</th><th>Ações</th></tr></thead><tbody>';
+                    jogos.forEach(j => {
+                        html += `<tr><td>${j.nome}</td><td><button class="btn btn-danger btn-small" onclick="excluirJogo('${j.id}')">Excluir</button></td></tr>`;
+                    });
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                }
+
+                // Update select in product modal
+                const select = document.getElementById('prodJogo');
+                select.innerHTML = jogos.map(j => `<option value="${j.id}">${j.nome}</option>`).join('');
+
+            } catch (err) {
+                console.error('Erro jogos:', err);
+            }
+        }
+
+        document.getElementById('jogoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('jogoNome').value.trim();
+            if (!nome) return;
+            try {
+                await adicionarJogo(nome);
+                document.getElementById('jogoNome').value = '';
+                await carregarJogos();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        });
+
+        window.excluirJogo = async function(id) {
+            if (!confirm('Tem certeza que deseja excluir este jogo?')) return;
+            try {
+                await removerJogo(id);
+                await carregarJogos();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        // Produtos
+        async function carregarProdutos() {
+            try {
+                produtos = await listarProdutosPorJogo('todos');
+                const container = document.getElementById('listaProdutos');
+                if (produtos.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-secondary);">Nenhum produto cadastrado.</p>';
+                } else {
+                    let html = '<div class="admin-table"><table style="width:100%;"><thead><tr><th>Produto</th><th>Jogo</th><th>Preço</th><th>Ações</th></tr></thead><tbody>';
+                    for (const p of produtos) {
+                        const jogoNome = p.jogoId ? (jogos.find(j => j.id === p.jogoId)?.nome || 'Desconhecido') : 'Sem jogo';
+                        html += `
+                            <tr>
+                                <td>${p.nome}</td>
+                                <td>${jogoNome}</td>
+                                <td>R$ ${parseFloat(p.preco).toFixed(2)}</td>
+                                <td><button class="btn btn-danger btn-small" onclick="excluirProduto('${p.id}')">Excluir</button></td>
+                            </tr>
+                        `;
+                    }
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                }
+            } catch (err) {
+                console.error('Erro produtos:', err);
+            }
+        }
+
+        window.excluirProduto = async function(id) {
+            if (!confirm('Excluir este produto?')) return;
+            try {
+                await removerProduto(id);
+                await carregarProdutos();
+                await carregarStats();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        window.abrirModalProduto = function() {
+            document.getElementById('modalProduto').classList.add('active');
+            document.getElementById('modalProdutoTitle').textContent = 'Novo Produto';
+            document.getElementById('produtoForm').reset();
+        };
+
+        window.fecharModalProduto = function() {
+            document.getElementById('modalProduto').classList.remove('active');
+        };
+
+        document.getElementById('produtoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('prodNome').value.trim();
+            const jogoId = document.getElementById('prodJogo').value;
+            const preco = parseFloat(document.getElementById('prodPreco').value);
+            const descricao = document.getElementById('prodDescricao').value.trim();
+            const fileInput = document.getElementById('prodImagem');
+
+            if (!nome || !jogoId || !preco) {
+                alert('Preencha todos os campos obrigatórios');
+                return;
+            }
+
+            try {
+                let imagemBase64 = '';
+                if (fileInput.files[0]) {
+                    imagemBase64 = await imagemParaBase64(fileInput.files[0]);
+                }
+
+                await adicionarProduto({ nome, jogoId, preco, descricao, imagemBase64 });
+                fecharModalProduto();
+                await carregarProdutos();
+                await carregarStats();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        });
+
+        // Usuarios / Admins
+        async function carregarUsuarios() {
+            try {
+                const usuarios = await listarUsuarios();
+                const container = document.getElementById('listaUsuarios');
+                let html = '<div class="admin-table"><table style="width:100%;"><thead><tr><th>Username</th><th>Admin</th><th>Ações</th></tr></thead><tbody>';
+                usuarios.forEach(u => {
+                    html += `
+                        <tr>
+                            <td>${u.username}</td>
+                            <td>${u.admin ? '<span class="status status-aprovado">Admin</span>' : '<span class="status status-pendente">Usuário</span>'}</td>
+                            <td>
+                                ${u.admin
+                                    ? `<button class="btn btn-secondary btn-small" onclick="rebaixarAdminAction('${u.uid}')">Remover Admin</button>`
+                                    : `<button class="btn btn-primary btn-small" onclick="promoverAdminAction('${u.uid}')">Promover</button>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (err) {
+                console.error('Erro usuarios:', err);
+            }
+        }
+
+        window.promoverAdminAction = async function(uid) {
+            try {
+                await promoverAdmin(uid);
+                await carregarUsuarios();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        window.rebaixarAdminAction = async function(uid) {
+            try {
+                await rebaixarAdmin(uid);
+                await carregarUsuarios();
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        // Logo
+        async function carregarLogo() {
+            try {
+                const logo = await getLogo();
+                if (logo) {
+                    document.getElementById('logoPreview').innerHTML = `<img src="${logo}" style="max-width:300px;max-height:100px;border-radius:8px;">`;
+                }
+            } catch (err) {
+                console.error('Erro logo:', err);
+            }
+        }
+
+        document.getElementById('logoInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('logoPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:300px;max-height:100px;border-radius:8px;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('salvarLogoBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('logoInput');
+            const status = document.getElementById('logoStatus');
+            if (!fileInput.files[0]) {
+                status.innerHTML = '<p style="color:var(--yellow);">Selecione uma imagem primeiro.</p>';
+                return;
+            }
+            try {
+                const base64 = await imagemParaBase64(fileInput.files[0]);
+                await salvarLogo(base64);
+                status.innerHTML = '<p style="color:var(--green);">✅ Logo salva com sucesso!</p>';
+            } catch (err) {
+                status.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
+            }
+        });
+
+        // PIX Config
+        async function carregarPix() {
+            try {
+                const config = await getPixConfig();
+                document.getElementById('chavePix').value = config.chavePix || '';
+                document.getElementById('nomePix').value = config.nomePix || '';
+            } catch (err) {
+                console.error('Erro pix:', err);
+            }
+        }
+
+        document.getElementById('pixForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const chavePix = document.getElementById('chavePix').value.trim();
+            const nomePix = document.getElementById('nomePix').value.trim();
+            const status = document.getElementById('pixStatus');
+
+            if (!chavePix || !nomePix) {
+                status.innerHTML = '<p style="color:var(--yellow);">Preencha todos os campos.</p>';
+                return;
+            }
+
+            try {
+                await salvarPixConfig(chavePix, nomePix);
+                status.innerHTML = '<p style="color:var(--green);">✅ Configuração PIX salva!</p>';
+            } catch (err) {
+                status.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
+            }
+        });
+
+        // Pagamentos
+        function carregarPagamentos() {
+            observarCompras((compras) => {
+                const container = document.getElementById('listaPagamentos');
+                if (compras.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-secondary);">Nenhuma compra registrada.</p>';
+                    return;
+                }
+
+                let html = '<div class="admin-table"><table style="width:100%;"><thead><tr><th>Usuário</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th><th>Comprovante</th><th>Ações</th></tr></thead><tbody>';
+
+                compras.forEach(c => {
+                    const statusClass = `status-${c.status}`;
+                    const statusLabel = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
+
+                    let comprovanteHtml = '-';
+                    if (c.comprovante) {
+                        comprovanteHtml = `<img src="${c.comprovante}" class="comprovante-preview" onclick="window.open('${c.comprovante}')">`;
+                    }
+
+                    let acoesHtml = '';
+                    if (c.status === 'pendente') {
+                        acoesHtml = `
+                            <button class="btn btn-success btn-small" onclick="aprovar('${c.id}')" style="margin-right:4px;">✓</button>
+                            <button class="btn btn-danger btn-small" onclick="recusar('${c.id}')">✗</button>
+                        `;
+                    } else {
+                        acoesHtml = '<span style="color:var(--text-secondary);font-size:13px;">Finalizado</span>';
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${c.username || 'Anônimo'}</td>
+                            <td>${c.produtoNome || '-'}</td>
+                            <td>R$ ${parseFloat(c.valor || 0).toFixed(2)}</td>
+                            <td>${new Date(c.data).toLocaleString('pt-BR')}</td>
+                            <td><span class="status ${statusClass}">${statusLabel}</span></td>
+                            <td>${comprovanteHtml}</td>
+                            <td>${acoesHtml}</td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            });
+        }
+
+        window.aprovar = async function(id) {
+            try {
+                await aprovarCompra(id);
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        window.recusar = async function(id) {
+            try {
+                await recusarCompra(id);
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        };
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
