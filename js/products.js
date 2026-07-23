@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js';
-import { collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, getDoc, deleteDoc, doc, updateDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import { mostrarNotificacao } from './helper.js';
 
 async function adicionarJogo(nome, imagemBase64 = '') {
@@ -16,7 +16,7 @@ async function listarJogos() {
         return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
         console.error('Erro ao listar jogos:', err);
-        mostrarNotificacao('Erro ao carregar jogos: ' + err.message, 'erro');
+        mostrarNotificacao('Erro ao carregar jogos', 'erro');
         return [];
     }
 }
@@ -38,7 +38,7 @@ async function atualizarJogo(id, dados) {
         return true;
     } catch (err) {
         console.error('Erro ao atualizar jogo:', err);
-        mostrarNotificacao('Erro ao atualizar jogo: ' + err.message, 'erro');
+        mostrarNotificacao('Erro ao atualizar jogo', 'erro');
         return false;
     }
 }
@@ -49,7 +49,7 @@ async function removerJogo(id) {
         return true;
     } catch (err) {
         console.error('Erro ao remover jogo:', err);
-        mostrarNotificacao('Erro ao remover jogo: ' + err.message, 'erro');
+        mostrarNotificacao('Erro ao remover jogo', 'erro');
         return false;
     }
 }
@@ -62,22 +62,19 @@ async function adicionarProduto(produto) {
         });
     } catch (err) {
         console.error('Erro ao adicionar produto:', err);
-        mostrarNotificacao('Erro ao adicionar produto: ' + err.message, 'erro');
+        mostrarNotificacao('Erro ao adicionar produto', 'erro');
         return null;
     }
 }
 
 async function listarProdutosPorJogo(jogoId) {
     try {
-        let q;
-        if (jogoId === 'todos') {
-            q = query(collection(db, "produtos"), orderBy("dataCriacao", "desc"));
-        } else {
-            const whereFilter = where("jogoId", "==", jogoId);
-            q = query(collection(db, "produtos"), whereFilter, orderBy("dataCriacao", "desc"));
+        const snap = await getDocs(query(collection(db, "produtos"), orderBy("dataCriacao", "desc")));
+        let produtos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (jogoId !== 'todos') {
+            produtos = produtos.filter(p => p.jogoId === jogoId);
         }
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return produtos;
     } catch (err) {
         console.error('Erro ao listar produtos:', err);
         mostrarNotificacao('Erro ao carregar produtos', 'erro');
@@ -87,20 +84,19 @@ async function listarProdutosPorJogo(jogoId) {
 
 function observarProdutos(jogoId, callback, errorCallback) {
     try {
-        let q;
-        if (jogoId === 'todos') {
-            q = query(collection(db, "produtos"), orderBy("dataCriacao", "desc"));
-        } else {
-            q = query(collection(db, "produtos"), where("jogoId", "==", jogoId), orderBy("dataCriacao", "desc"));
-        }
-        return onSnapshot(q,
+        return onSnapshot(
+            query(collection(db, "produtos"), orderBy("dataCriacao", "desc")),
             (snap) => {
-                callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                let produtos = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (jogoId !== 'todos') {
+                    produtos = produtos.filter(p => p.jogoId === jogoId);
+                }
+                callback(produtos);
             },
             (error) => {
                 console.error('Erro no snapshot produtos:', error);
                 if (errorCallback) errorCallback(error);
-                mostrarNotificacao('Erro ao carregar produtos: ' + error.message, 'erro');
+                mostrarNotificacao('Erro ao carregar produtos', 'erro');
             }
         );
     } catch (err) {

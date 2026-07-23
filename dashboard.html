@@ -42,7 +42,7 @@
         import { auth, db } from './js/firebase-config.js';
         import { logout, getCurrentUserData } from './js/auth.js';
         import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-        import { collection, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+        import { collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
         import { formatarPreco, formatarData, mostrarNotificacao } from './js/helper.js';
 
         onAuthStateChanged(auth, async (user) => {
@@ -66,20 +66,23 @@
             }
 
             try {
-                const q = query(
-                    collection(db, "compras"),
-                    where("usuario", "==", user.uid),
-                    orderBy("data", "desc")
-                );
+                const q = query(collection(db, "compras"), orderBy("data", "desc"));
 
                 onSnapshot(q, (snap) => {
-                    if (snap.empty) {
+                    const uid = user.uid;
+                    const minhasCompras = [];
+                    snap.forEach(d => {
+                        if (d.data().usuario === uid) {
+                            minhasCompras.push({ id: d.id, ...d.data() });
+                        }
+                    });
+
+                    if (minhasCompras.length === 0) {
                         document.getElementById('minhasCompras').innerHTML = '<p style="color:#666;">Você ainda não fez nenhuma compra.</p>';
                         return;
                     }
                     let html = '<div class="admin-table"><table><thead><tr><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th></tr></thead><tbody>';
-                    snap.forEach(d => {
-                        const c = d.data();
+                    minhasCompras.forEach(c => {
                         const statusClass = c.status === 'aprovado' ? 'status-aprovado' : c.status === 'recusado' ? 'status-recusado' : 'status-pendente';
                         const statusLabel = c.status === 'aprovado' ? 'Aprovado' : c.status === 'recusado' ? 'Recusado' : 'Pendente';
                         html += `<tr><td>${c.produtoNome || '—'}</td><td>${formatarPreco(c.valor)}</td><td>${c.data ? formatarData(c.data) : '—'}</td><td><span class="status ${statusClass}">${statusLabel}</span></td></tr>`;
@@ -87,9 +90,11 @@
                     html += '</tbody></table></div>';
                     document.getElementById('minhasCompras').innerHTML = html;
                 }, (err) => {
+                    console.error('Erro compras:', err);
                     document.getElementById('minhasCompras').innerHTML = '<p style="color:var(--red);">Erro ao carregar compras.</p>';
                 });
             } catch (err) {
+                console.error('Erro compras:', err);
                 document.getElementById('minhasCompras').innerHTML = '<p style="color:var(--red);">Erro ao carregar compras.</p>';
             }
         });

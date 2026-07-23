@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js';
-import { collection, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 function formatarTempo(dataISO) {
     if (!dataISO) return '';
@@ -21,23 +21,26 @@ function iniciarFeed(elementId, maxItems = 20) {
     feedEl.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">⏳ Carregando...</div>';
 
     try {
-        const q = query(
-            collection(db, "compras"),
-            where("status", "==", "aprovado"),
-            orderBy("data", "desc")
-        );
+        const q = query(collection(db, "compras"), orderBy("data", "desc"));
 
         return onSnapshot(q, (snap) => {
-            if (snap.empty) {
+            const aprovados = [];
+            snap.forEach(d => {
+                const c = d.data();
+                if (c.status === 'aprovado') {
+                    aprovados.push(c);
+                }
+            });
+
+            if (aprovados.length === 0) {
                 feedEl.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">Nenhuma compra recente</div>';
                 return;
             }
 
             let html = '';
             let count = 0;
-            snap.forEach((doc) => {
-                if (count >= maxItems) return;
-                const c = doc.data();
+            for (const c of aprovados) {
+                if (count >= maxItems) break;
                 html += `
                     <div class="feed-item">
                         <div class="feed-icon">🎮</div>
@@ -49,7 +52,7 @@ function iniciarFeed(elementId, maxItems = 20) {
                     </div>
                 `;
                 count++;
-            });
+            }
             feedEl.innerHTML = html;
         }, (error) => {
             console.error('Erro no feed:', error);
